@@ -1,7 +1,9 @@
 import requests
-import logging
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from PyQt6.QtCore import QObject, pyqtSignal
 from typing import Dict, List, Any
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,29 @@ class ApiClient(QObject):
         self.api_key = ""
         self.client_id = ""
         self.available_endpoints = []
+        
+        # Create an optimized session for faster API calls
+        self.session = self._create_session()
+        
         logger.debug("API client initialized")
+    
+    def _create_session(self):
+        """Create an optimized session for API calls"""
+        session = requests.Session()
+        
+        # Configure connection pooling and keepalives
+        adapter = HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=Retry(
+                total=0,  # No retries for real-time performance
+                backoff_factor=0
+            )
+        )
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        
+        return session
     
     def set_api_config(self, url, key, client_id=""):
         """Set API configuration"""
@@ -128,13 +152,7 @@ class ApiClient(QObject):
             return []
     
     def call_endpoint(self, endpoint, params=None, data=None):
-        """Call a specific endpoint with parameters
-        
-        Args:
-            endpoint (str): The endpoint path
-            params (dict, optional): Query parameters
-            data (dict, optional): Body data (for POST/PUT)
-        """
+        """Call a specific endpoint with parameters - optimized for performance"""
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
             
@@ -147,19 +165,19 @@ class ApiClient(QObject):
             
             # Also include it in header for legacy support
             headers['Client-ID'] = self.client_id
-        
-        logger.debug("Calling API endpoint: %s with params: %s, data: %s", endpoint, params, data)
             
         try:
-            response = self._make_request("POST", endpoint, params=params, json=data)
-            logger.debug("API response status: %d", response.status_code)
+            # Use the session for better performance through connection reuse
+            url = f"{self.api_url}{endpoint}"
+            response = self.session.post(url, params=params, json=data, headers=headers)
+            response.raise_for_status()
             return response.json() if response.content else {'success': True}
         except Exception as e:
-            logger.error("API call failed: %s - %s", endpoint, str(e))
+            # Minimize logging in the critical path
             raise Exception(f"API call failed: {str(e)}")
     
     def _make_request(self, method, endpoint, **kwargs):
-        """Make a request to the API"""
+        """Make a request to the API using the session for better performance"""
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
             
@@ -172,5 +190,9 @@ class ApiClient(QObject):
         kwargs['headers'] = headers
         url = f"{self.api_url}{endpoint}"
         
-        logger.debug("%s request to %s", method, url)
-        return requests.request(method, url, **kwargs)
+        return self.session.request(method, url, **kwargs)
+    
+    def __del__(self):
+        """Clean up resources"""
+        if hasattr(self, 'session'):
+            self.session.close()

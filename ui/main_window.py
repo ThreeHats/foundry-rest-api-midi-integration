@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QLabel, QStatusBar, QPushButton, QSplitter
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from ui.config_widget import ConfigWidget
 from ui.mapping_widget import MappingWidget
 from ui.midi_monitor_widget import MidiMonitorWidget
@@ -74,6 +74,11 @@ class MainWindow(QWidget):
         """Show status message"""
         logger.info("Status update: %s", message)
         self.status_label.setText(message)
+    
+    def show_status_nonblocking(self, message):
+        """Show status message in a non-blocking way using a timer"""
+        # Use Qt's own event queue to update the UI without blocking the MIDI thread
+        QTimer.singleShot(0, lambda: self.status_label.setText(message))
     
     def refresh_clients(self):
         """Refresh client list in config widget"""

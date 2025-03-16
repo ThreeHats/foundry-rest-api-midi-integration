@@ -3,16 +3,21 @@ import time
 import logging
 from PyQt6.QtCore import QObject, pyqtSignal, QThread
 from typing import Dict, List, Any, Optional, Tuple
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
 class MidiListenerThread(QThread):
     midi_event = pyqtSignal(object)
     
-    def __init__(self, port_name):
+    def __init__(self, port_name, buffer_size=10):
         super().__init__()
         self.port_name = port_name
         self._running = True
+        # Modified buffer design that stores the message key and a timestamp
+        # This will allow repeated button presses after a small timeout
+        self._message_buffer = {}  # {key: timestamp}
+        self._buffer_timeout = 0.1  # 100ms timeout for duplicate messages
         logger.debug("MIDI listener thread initialized for port: %s", port_name)
     
     def run(self):
@@ -22,9 +27,27 @@ class MidiListenerThread(QThread):
                 logger.debug("MIDI port opened: %s", self.port_name)
                 while self._running:
                     for message in port.iter_pending():
-                        logger.debug("MIDI message received: %s", message)
+                        # Create a unique key for the message
+                        message_key = (message.type, message.channel, 
+                                     getattr(message, 'note', -1), 
+                                     getattr(message, 'control', -1))
+                        
+                        current_time = time.time()
+                        
+                        # Check if this is a repeated message within the timeout period
+                        # For note_on/note_off pairs, we always process both
+                        if (message_key in self._message_buffer and 
+                            message.type not in ['note_off', 'note_on'] and
+                            current_time - self._message_buffer[message_key] < self._buffer_timeout):
+                            # Skip too-frequent duplicate messages
+                            continue
+                        
+                        # Update the timestamp and process the message
+                        self._message_buffer[message_key] = current_time
                         self.midi_event.emit(message)
-                    time.sleep(0.001)
+                        
+                    # Optimized sleep time for lower latency
+                    time.sleep(0.001)  # 1ms polling is enough for real-time performance
         except Exception as e:
             logger.error("MIDI Error: %s", str(e))
         logger.info("MIDI listener thread stopped")
@@ -33,30 +56,44 @@ class MidiListenerThread(QThread):
         logger.debug("Stopping MIDI listener thread")
         self._running = False
 
+
 class MidiHandler(QObject):
     midi_signal_received = pyqtSignal(object, str, dict, dict)  # message, endpoint, query_params, body_params
     midi_devices_changed = pyqtSignal(list)
     
-    def __init__(self):
+    def __init__(self, auto_connect=False):
         super().__init__()
         self.mappings = {}  # {(msg_type, channel, note/control): endpoint}
         self.current_device = None
         self.listener_thread = None
         logger.info("MIDI handler initialized")
-        self.refresh_devices()
+        
+        # Cache device list but don't connect automatically
+        self._cached_devices = []
+        if auto_connect:
+            self.refresh_devices()
     
     def refresh_devices(self) -> List[str]:
-        """Refresh the list of MIDI devices"""
+        """Refresh the list of MIDI devices without auto-connecting"""
         try:
             devices = mido.get_input_names()
+            self._cached_devices = devices
             logger.info("Found %d MIDI input devices", len(devices))
-            for device in devices:
-                logger.debug("MIDI device: %s", device)
+            if logger.level <= logging.DEBUG:
+                for device in devices:
+                    logger.debug("MIDI device: %s", device)
             self.midi_devices_changed.emit(devices)
             return devices
         except Exception as e:
             logger.error("Error refreshing MIDI devices: %s", str(e))
             return []
+    
+    def get_cached_devices(self) -> List[str]:
+        """Get the cached device list without querying hardware"""
+        if not self._cached_devices:
+            # Only refresh if cache is empty
+            return self.refresh_devices()
+        return self._cached_devices
     
     def connect_to_device(self, device_name: str) -> bool:
         """Connect to a MIDI device"""
@@ -113,23 +150,19 @@ class MidiHandler(QObject):
         """Process incoming MIDI message and trigger API calls if mapped"""
         key = None
         
+        # Use direct access to message attributes for performance
         if message.type == 'note_on' and message.velocity > 0:
             key = ('note_on', message.channel, message.note)
-            logger.debug("Note On: Channel %d, Note %d, Velocity %d", 
-                       message.channel, message.note, message.velocity)
         elif message.type == 'note_off' or (message.type == 'note_on' and message.velocity == 0):
             key = ('note_off', message.channel, message.note)
-            logger.debug("Note Off: Channel %d, Note %d", 
-                       message.channel, message.note)
         elif message.type == 'control_change':
             key = ('control_change', message.channel, message.control)
-            logger.debug("Control Change: Channel %d, Control %d, Value %d", 
-                       message.channel, message.control, message.value)
         
+        # Fast path for mapped keys
         if key and key in self.mappings:
             mapping_data = self.mappings[key]
             
-            # Handle both old and new mapping formats
+            # Handle both old and new mapping formats with minimal processing
             if isinstance(mapping_data, dict):
                 endpoint = mapping_data["endpoint"]
                 query_params = mapping_data.get("query_params", {})
@@ -140,8 +173,7 @@ class MidiHandler(QObject):
                 query_params = {}
                 body_params = {}
                 
-            logger.info("MIDI message matched mapping: %s -> %s (params: query=%s, body=%s)", 
-                       key, endpoint, query_params, body_params)
+            # Emit the signal directly without logging in the critical path
             self.midi_signal_received.emit(message, endpoint, query_params, body_params)
     
     def close(self):

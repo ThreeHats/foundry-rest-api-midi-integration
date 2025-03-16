@@ -10,15 +10,17 @@ from config_manager import ConfigManager
 logger = logging.getLogger(__name__)
 
 class MidiRestApp(QMainWindow):
-    def __init__(self):
+    def __init__(self, dev_mode=False):
         super().__init__()
         
+        # Store dev mode flag
+        self.dev_mode = dev_mode
         logger.info("Initializing application components")
         
         # Initialize components
         self.config_manager = ConfigManager()
         self.api_client = ApiClient()
-        self.midi_handler = MidiHandler()
+        self.midi_handler = MidiHandler(auto_connect=False)  # Don't auto-connect
         
         # Load settings
         logger.debug("Loading application settings")
@@ -94,15 +96,26 @@ class MidiRestApp(QMainWindow):
         self.save_settings()
     
     def on_midi_signal(self, midi_event, endpoint, query_params, body_params):
+        """Optimized handler for MIDI signals triggering API calls"""
         try:
-            logger.debug("MIDI signal triggered API call: %s with params: %s, %s", 
-                       endpoint, query_params, body_params)
+            # Only log in dev mode to avoid performance overhead
+            if self.dev_mode:
+                logger.debug("MIDI signal triggered API call: %s with params: %s, %s", 
+                           endpoint, query_params, body_params)
+            
+            # Make the API call directly
             response = self.api_client.call_endpoint(endpoint, params=query_params, data=body_params)
-            logger.debug("API call succeeded: %s, Response: %s", endpoint, response)
-            self.ui.show_status(f"API call succeeded: {endpoint}")
+            
+            # Update UI status in a non-blocking way - this might have been blocking the MIDI thread
+            self.ui.show_status_nonblocking(f"API call: {endpoint}")
+            
+            # Minimal feedback in production mode
+            if self.dev_mode:
+                logger.debug("API call succeeded: %s, Response: %s", endpoint, response)
         except Exception as e:
-            logger.error("API call failed: %s, Error: %s", endpoint, str(e))
-            self.ui.show_status(f"API call failed: {str(e)}")
+            if self.dev_mode:
+                logger.error("API call failed: %s, Error: %s", endpoint, str(e))
+            self.ui.show_status_nonblocking(f"Error: {str(e)}")
     
     def closeEvent(self, event):
         logger.info("Application closing")

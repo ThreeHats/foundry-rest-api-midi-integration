@@ -42,8 +42,16 @@ class MappingWidget(QWidget):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
         
-        # MIDI Device selection
-        midi_group = QGroupBox("MIDI Device")
+        # Add a big connect button to make it clearer that connection is manual
+        connect_section = QWidget()
+        connect_layout = QVBoxLayout(connect_section)
+        
+        connect_info = QLabel("MIDI devices are not connected automatically at startup.\n"
+                              "Please select a device and click Connect when ready.")
+        connect_layout.addWidget(connect_info)
+        
+        # Adjust the existing MIDI controls for better visibility
+        midi_group = QGroupBox("MIDI Device Connection")
         midi_layout = QHBoxLayout()
         midi_group.setLayout(midi_layout)
         
@@ -51,15 +59,17 @@ class MappingWidget(QWidget):
         self.midi_device_combo = QComboBox()
         midi_layout.addWidget(self.midi_device_combo)
         
-        self.refresh_midi_button = QPushButton("Refresh")
+        self.refresh_midi_button = QPushButton("Refresh Devices")
         self.refresh_midi_button.clicked.connect(self.refresh_midi_devices)
         midi_layout.addWidget(self.refresh_midi_button)
         
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.connect_to_device)
+        self.connect_button.setStyleSheet("font-weight: bold; font-size: 12pt;")  # Make it prominent
         midi_layout.addWidget(self.connect_button)
         
-        main_layout.addWidget(midi_group)
+        connect_layout.addWidget(midi_group)
+        main_layout.addWidget(connect_section)
         
         # Add mapping controls
         mapping_group = QGroupBox("Create Mapping")
@@ -130,9 +140,9 @@ class MappingWidget(QWidget):
         self.refresh_midi_devices()
     
     def refresh_midi_devices(self):
-        """Refresh MIDI device list"""
+        """Refresh MIDI device list but don't connect automatically"""
         logger.debug("Refreshing MIDI device list")
-        devices = self.midi_handler.refresh_devices()
+        devices = self.midi_handler.refresh_devices()  # Just refresh the list without auto-connecting
         self.update_midi_devices(devices)
     
     def update_midi_devices(self, devices):
