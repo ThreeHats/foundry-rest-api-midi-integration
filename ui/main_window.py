@@ -40,7 +40,7 @@ class MainWindow(QWidget):
         )
         self.tabs.addTab(self.mapping_widget, "MIDI Mappings")
         
-        # Create MIDI monitor widget
+        # Create MIDI monitor widget with support for parameters
         logger.debug("Creating MIDI monitor widget")
         self.midi_monitor = MidiMonitorWidget(self.parent.midi_handler)
         self.tabs.addTab(self.midi_monitor, "MIDI Monitor")

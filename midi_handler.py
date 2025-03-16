@@ -34,7 +34,7 @@ class MidiListenerThread(QThread):
         self._running = False
 
 class MidiHandler(QObject):
-    midi_signal_received = pyqtSignal(object, str)
+    midi_signal_received = pyqtSignal(object, str, dict, dict)  # message, endpoint, query_params, body_params
     midi_devices_changed = pyqtSignal(list)
     
     def __init__(self):
@@ -86,18 +86,25 @@ class MidiHandler(QObject):
             logger.debug("Mapping: %s -> %s", key, endpoint)
     
     def add_mapping(self, msg_type: str, channel: int, 
-                    note_or_control: int, endpoint: str):
-        """Add a new MIDI mapping"""
+                    note_or_control: int, endpoint: str,
+                    query_params: dict = None,
+                    body_params: dict = None):
+        """Add a new MIDI mapping with parameters"""
         key = (msg_type, channel, note_or_control)
-        self.mappings[key] = endpoint
-        logger.info("Added MIDI mapping: (%s, %d, %d) -> %s", 
-                   msg_type, channel, note_or_control, endpoint)
+        self.mappings[key] = {
+            "endpoint": endpoint,
+            "query_params": query_params or {},
+            "body_params": body_params or {}
+        }
+        logger.info("Added MIDI mapping: (%s, %d, %d) -> %s with params: query=%s, body=%s", 
+                   msg_type, channel, note_or_control, endpoint, query_params, body_params)
     
     def remove_mapping(self, msg_type: str, channel: int, note_or_control: int):
         """Remove a MIDI mapping"""
         key = (msg_type, channel, note_or_control)
         if key in self.mappings:
-            endpoint = self.mappings[key]
+            mapping_data = self.mappings[key]
+            endpoint = mapping_data["endpoint"] if isinstance(mapping_data, dict) else mapping_data
             del self.mappings[key]
             logger.info("Removed MIDI mapping: (%s, %d, %d) -> %s", 
                       msg_type, channel, note_or_control, endpoint)
@@ -120,9 +127,22 @@ class MidiHandler(QObject):
                        message.channel, message.control, message.value)
         
         if key and key in self.mappings:
-            endpoint = self.mappings[key]
-            logger.info("MIDI message matched mapping: %s -> %s", key, endpoint)
-            self.midi_signal_received.emit(message, endpoint)
+            mapping_data = self.mappings[key]
+            
+            # Handle both old and new mapping formats
+            if isinstance(mapping_data, dict):
+                endpoint = mapping_data["endpoint"]
+                query_params = mapping_data.get("query_params", {})
+                body_params = mapping_data.get("body_params", {})
+            else:
+                # Legacy format: just the endpoint string
+                endpoint = mapping_data
+                query_params = {}
+                body_params = {}
+                
+            logger.info("MIDI message matched mapping: %s -> %s (params: query=%s, body=%s)", 
+                       key, endpoint, query_params, body_params)
+            self.midi_signal_received.emit(message, endpoint, query_params, body_params)
     
     def close(self):
         """Close MIDI connections"""

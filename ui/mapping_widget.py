@@ -7,6 +7,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
+from ui.parameter_dialog import ParameterDialog
+
 logger = logging.getLogger(__name__)
 
 class MappingWidget(QWidget):
@@ -112,6 +114,12 @@ class MappingWidget(QWidget):
         
         # Delete selected mapping button
         delete_button_layout = QHBoxLayout()
+        
+        # Add Edit button
+        self.edit_mapping_button = QPushButton("Edit Parameters")
+        self.edit_mapping_button.clicked.connect(self.edit_mapping)
+        delete_button_layout.addWidget(self.edit_mapping_button)
+        
         self.delete_mapping_button = QPushButton("Delete Selected Mapping")
         self.delete_mapping_button.clicked.connect(self.delete_mapping)
         delete_button_layout.addWidget(self.delete_mapping_button)
@@ -159,12 +167,15 @@ class MappingWidget(QWidget):
         if endpoints and isinstance(endpoints[0], dict):
             # We have full endpoint info
             for endpoint in endpoints:
-                display = endpoint.get("display", "")
+                method = endpoint.get("method", "")
                 path = endpoint.get("path", "")
                 description = endpoint.get("description", "")
                 
+                # Build the display text
+                display = f"{method} {path}"
+                
                 # Add to dropdown with tooltip
-                self.endpoint_combo.addItem(f"{endpoint['method']} {path}", path)
+                self.endpoint_combo.addItem(display)
                 index = self.endpoint_combo.count() - 1
                 self.endpoint_combo.setItemData(index, description, Qt.ItemDataRole.ToolTipRole)
         else:
@@ -255,23 +266,55 @@ class MappingWidget(QWidget):
         channel = self.channel_spin.value()
         note_or_control = self.note_control_spin.value()
         
-        # Get endpoint path (might be stored in the item data)
+        # Get selected endpoint and its data
         endpoint_index = self.endpoint_combo.currentIndex()
-        if endpoint_index >= 0:
-            endpoint = self.endpoint_combo.itemData(endpoint_index) or self.endpoint_combo.currentText()
-        else:
-            endpoint = self.endpoint_combo.currentText()
-        
-        if not endpoint:
-            logger.warning("Missing endpoint when adding mapping")
+        if endpoint_index < 0:
+            logger.warning("No endpoint selected when adding mapping")
             QMessageBox.warning(self, "Missing Information", 
-                             "Please select or enter an API endpoint")
+                             "Please select an API endpoint")
             return
         
-        # Add mapping
-        logger.info("Adding MIDI mapping: (%s, %d, %d) -> %s", 
-                   msg_type, channel, note_or_control, endpoint)
-        self.midi_handler.add_mapping(msg_type, channel, note_or_control, endpoint)
+        # Get endpoint path and full endpoint data
+        endpoint_path = ""
+        endpoint_data = None
+        
+        # Try to get endpoint data from the API client
+        if hasattr(self.api_client, "available_endpoints") and self.api_client.available_endpoints:
+            # Find the selected endpoint in available_endpoints
+            selected_text = self.endpoint_combo.currentText()
+            for ep in self.api_client.available_endpoints:
+                display = ep.get("display", "")
+                path = ep.get("path", "")
+                
+                if selected_text == display or path == selected_text:
+                    endpoint_path = path
+                    endpoint_data = ep
+                    break
+        
+        # Fall back to just using the text if we couldn't find the data
+        if not endpoint_path:
+            endpoint_path = self.endpoint_combo.currentText()
+            if endpoint_path.startswith(("GET ", "POST ", "PUT ", "DELETE ")):
+                # Strip the method prefix if present
+                endpoint_path = endpoint_path.split(" ", 1)[1]
+        
+        # Show parameter dialog if we have endpoint data
+        query_params = {}
+        body_params = {}
+        
+        if endpoint_data:
+            param_dialog = ParameterDialog(endpoint_data, {}, {}, self)
+            if param_dialog.exec():
+                query_params, body_params = param_dialog.get_parameters()
+                logger.debug("Parameter dialog returned: query=%s, body=%s", query_params, body_params)
+        
+        # Add mapping with parameters
+        logger.info("Adding MIDI mapping: (%s, %d, %d) -> %s with params", 
+                   msg_type, channel, note_or_control, endpoint_path)
+        self.midi_handler.add_mapping(
+            msg_type, channel, note_or_control, 
+            endpoint_path, query_params, body_params
+        )
         
         # Refresh display
         self.refresh_mappings()
@@ -306,11 +349,97 @@ class MappingWidget(QWidget):
         logger.debug("Refreshing mappings table with %d mappings", len(self.midi_handler.mappings))
         self.mappings_table.setRowCount(0)
         
-        for (msg_type, channel, note_control), endpoint in self.midi_handler.mappings.items():
+        for (msg_type, channel, note_control), mapping_data in self.midi_handler.mappings.items():
             row_position = self.mappings_table.rowCount()
             self.mappings_table.insertRow(row_position)
+            
+            # Handle both old and new mapping formats
+            if isinstance(mapping_data, dict):
+                endpoint = mapping_data.get("endpoint", "")
+                query_params = mapping_data.get("query_params", {})
+                body_params = mapping_data.get("body_params", {})
+                
+                # Show parameter indicators in endpoint display
+                param_indicators = []
+                if query_params:
+                    param_indicators.append(f"Q:{len(query_params)}")
+                if body_params:
+                    param_indicators.append(f"B:{len(body_params)}")
+                    
+                if param_indicators:
+                    display_endpoint = f"{endpoint} [{' '.join(param_indicators)}]"
+                else:
+                    display_endpoint = endpoint
+            else:
+                # Legacy format: just the endpoint string
+                display_endpoint = mapping_data
             
             self.mappings_table.setItem(row_position, 0, QTableWidgetItem(msg_type))
             self.mappings_table.setItem(row_position, 1, QTableWidgetItem(str(channel)))
             self.mappings_table.setItem(row_position, 2, QTableWidgetItem(str(note_control)))
-            self.mappings_table.setItem(row_position, 3, QTableWidgetItem(endpoint))
+            self.mappings_table.setItem(row_position, 3, QTableWidgetItem(display_endpoint))
+    
+    def edit_mapping(self):
+        """Edit the parameters of a selected mapping"""
+        selected_row = self.mappings_table.currentRow()
+        if selected_row < 0:
+            logger.warning("No mapping selected for editing")
+            QMessageBox.information(self, "No Selection", "Please select a mapping to edit.")
+            return
+        
+        # Get mapping details
+        msg_type = self.mappings_table.item(selected_row, 0).text()
+        channel = int(self.mappings_table.item(selected_row, 1).text())
+        note_or_control = int(self.mappings_table.item(selected_row, 2).text())
+        
+        # Get the mapping data
+        key = (msg_type, channel, note_or_control)
+        if key not in self.midi_handler.mappings:
+            logger.error("Selected mapping not found in mappings dict")
+            return
+        
+        mapping_data = self.midi_handler.mappings[key]
+        
+        # Handle both old and new formats
+        if isinstance(mapping_data, dict):
+            endpoint = mapping_data.get("endpoint", "")
+            query_params = mapping_data.get("query_params", {})
+            body_params = mapping_data.get("body_params", {})
+        else:
+            # Legacy format: just the endpoint string
+            endpoint = mapping_data
+            query_params = {}
+            body_params = {}
+        
+        # Find endpoint data
+        endpoint_data = None
+        if hasattr(self.api_client, "available_endpoints"):
+            for ep in self.api_client.available_endpoints:
+                if ep.get("path", "") == endpoint:
+                    endpoint_data = ep
+                    break
+        
+        if not endpoint_data:
+            # Create minimal endpoint data
+            endpoint_data = {
+                "path": endpoint,
+                "method": "Unknown",
+                "description": "Endpoint details not available"
+            }
+        
+        # Show parameter dialog
+        param_dialog = ParameterDialog(endpoint_data, query_params, body_params, self)
+        if param_dialog.exec():
+            new_query_params, new_body_params = param_dialog.get_parameters()
+            
+            # Update the mapping
+            self.midi_handler.add_mapping(
+                msg_type, channel, note_or_control, 
+                endpoint, new_query_params, new_body_params
+            )
+            
+            # Refresh display
+            self.refresh_mappings()
+            
+            # Notify change
+            self.mapping_changed_signal.emit(self.midi_handler.mappings)

@@ -76,7 +76,7 @@ class MidiRestApp(QMainWindow):
         self.ui.config_widget.save_config_signal.connect(self.on_config_changed)
         self.ui.mapping_widget.mapping_changed_signal.connect(self.on_mapping_changed)
         
-        # Connect MIDI handler to API client
+        # Connect MIDI handler to API client with parameters support
         self.midi_handler.midi_signal_received.connect(self.on_midi_signal)
         logger.debug("All signals connected")
     
@@ -93,10 +93,11 @@ class MidiRestApp(QMainWindow):
         self.midi_handler.set_mappings(mappings)
         self.save_settings()
     
-    def on_midi_signal(self, midi_event, endpoint):
+    def on_midi_signal(self, midi_event, endpoint, query_params, body_params):
         try:
-            logger.debug("MIDI signal triggered API call: %s", endpoint)
-            response = self.api_client.call_endpoint(endpoint)
+            logger.debug("MIDI signal triggered API call: %s with params: %s, %s", 
+                       endpoint, query_params, body_params)
+            response = self.api_client.call_endpoint(endpoint, params=query_params, data=body_params)
             logger.debug("API call succeeded: %s, Response: %s", endpoint, response)
             self.ui.show_status(f"API call succeeded: {endpoint}")
         except Exception as e:

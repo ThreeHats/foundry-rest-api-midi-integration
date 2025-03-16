@@ -96,21 +96,26 @@ class ApiClient(QObject):
                         if path in ["/api/docs", "/health", "/api/status"]:
                             continue
                             
+                        # Extract parameter information
+                        required_params = endpoint_info.get("requiredParameters", [])
+                        optional_params = endpoint_info.get("optionalParameters", [])
+                        
                         # Format endpoint for display
                         formatted_endpoint = f"{method} {path}"
                         endpoints.append({
                             "display": formatted_endpoint,
                             "method": method,
                             "path": path,
-                            "description": description
+                            "description": description,
+                            "required_parameters": required_params,
+                            "optional_parameters": optional_params
                         })
                     
                     self.available_endpoints = endpoints
                     logger.info("Successfully fetched %d endpoints from API docs", len(endpoints))
                     
-                    # Extract just the path values for backward compatibility with existing code
-                    endpoint_paths = [e["path"] for e in endpoints]
-                    self.endpoints_loaded.emit(endpoint_paths)
+                    # Emit the full endpoint objects
+                    self.endpoints_loaded.emit(endpoints)
                     return endpoints
                 else:
                     logger.warning("Invalid API docs format - missing 'endpoints' array")
@@ -122,19 +127,31 @@ class ApiClient(QObject):
             self.api_status_changed.emit(False, f"Failed to fetch endpoints: {str(e)}")
             return []
     
-    def call_endpoint(self, endpoint, data=None):
-        """Call a specific endpoint"""
+    def call_endpoint(self, endpoint, params=None, data=None):
+        """Call a specific endpoint with parameters
+        
+        Args:
+            endpoint (str): The endpoint path
+            params (dict, optional): Query parameters
+            data (dict, optional): Body data (for POST/PUT)
+        """
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
             
         headers = {'x-api-key': self.api_key}
         if self.client_id:
+            # Always add client_id as query parameter if specified
+            if params is None:
+                params = {}
+            params['clientId'] = self.client_id
+            
+            # Also include it in header for legacy support
             headers['Client-ID'] = self.client_id
         
-        logger.debug("Calling API endpoint: %s", endpoint)
+        logger.debug("Calling API endpoint: %s with params: %s, data: %s", endpoint, params, data)
             
         try:
-            response = self._make_request("POST", endpoint, json=data)
+            response = self._make_request("POST", endpoint, params=params, json=data)
             logger.debug("API response status: %d", response.status_code)
             return response.json() if response.content else {'success': True}
         except Exception as e:

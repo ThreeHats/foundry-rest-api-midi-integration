@@ -20,15 +20,25 @@ class ConfigManager(QObject):
             logger.info("Creating configuration directory: %s", self.config_dir)
             os.makedirs(self.config_dir)
     
-    def save_mappings(self, mappings: Dict[Tuple, str]):
+    def save_mappings(self, mappings: Dict[Tuple, any]):
         """Save MIDI mappings to file"""
         logger.info("Saving %d MIDI mappings to %s", len(mappings), self.mappings_file)
         
         # Convert tuple keys to strings for JSON serialization
-        serializable_mappings = {
-            f"{msg_type}:{channel}:{note_control}": endpoint
-            for (msg_type, channel, note_control), endpoint in mappings.items()
-        }
+        serializable_mappings = {}
+        for (msg_type, channel, note_control), mapping_data in mappings.items():
+            key = f"{msg_type}:{channel}:{note_control}"
+            
+            # Handle both old and new formats
+            if isinstance(mapping_data, dict):
+                serializable_mappings[key] = mapping_data
+            else:
+                # Legacy format: just the endpoint string
+                serializable_mappings[key] = {
+                    "endpoint": mapping_data,
+                    "query_params": {},
+                    "body_params": {}
+                }
         
         try:
             with open(self.mappings_file, 'w') as f:
@@ -37,7 +47,7 @@ class ConfigManager(QObject):
         except Exception as e:
             logger.error("Error saving mappings: %s", str(e))
     
-    def load_mappings(self) -> Dict[Tuple, str]:
+    def load_mappings(self) -> Dict[Tuple, any]:
         """Load MIDI mappings from file"""
         if not os.path.exists(self.mappings_file):
             logger.info("No mappings file found at %s", self.mappings_file)
@@ -50,9 +60,20 @@ class ConfigManager(QObject):
             
             # Convert string keys back to tuples
             mappings = {}
-            for key, endpoint in serialized_mappings.items():
+            for key, mapping_data in serialized_mappings.items():
                 msg_type, channel, note_control = key.split(':')
-                mappings[(msg_type, int(channel), int(note_control))] = endpoint
+                tuple_key = (msg_type, int(channel), int(note_control))
+                
+                # Handle both old and new formats
+                if isinstance(mapping_data, dict) and "endpoint" in mapping_data:
+                    mappings[tuple_key] = mapping_data
+                else:
+                    # Legacy format or just the endpoint string
+                    mappings[tuple_key] = {
+                        "endpoint": mapping_data if isinstance(mapping_data, str) else mapping_data["endpoint"],
+                        "query_params": mapping_data.get("query_params", {}),
+                        "body_params": mapping_data.get("body_params", {})
+                    }
             
             logger.info("Loaded %d MIDI mappings", len(mappings))
             return mappings

@@ -89,9 +89,9 @@ class MidiMonitorWidget(QWidget):
         self.monitor_text.clear()
         self.monitor_text.append("Monitor cleared.\n")
     
-    @pyqtSlot(object, str)
-    def on_midi_signal(self, message, endpoint=None):
-        """Handle MIDI signal"""
+    @pyqtSlot(object, str, dict, dict)
+    def on_midi_signal(self, message, endpoint=None, query_params=None, body_params=None):
+        """Handle MIDI signal with parameters"""
         # Apply filters if any are active
         if self.filter_types and message.type not in self.filter_types:
             logger.debug("Filtered out %s message due to display filter", message.type)
@@ -102,28 +102,30 @@ class MidiMonitorWidget(QWidget):
         # Format message based on type
         if message.type == 'note_on':
             msg_text = f"[{timestamp}] NOTE ON: Channel {message.channel}, Note {message.note}, Velocity {message.velocity}"
-            if endpoint:
-                msg_text += f" -> API: {endpoint}"
-                logger.debug("Displaying mapped note_on message to %s", endpoint)
-            else:
-                logger.debug("Displaying unmapped note_on message")
         elif message.type == 'note_off':
             msg_text = f"[{timestamp}] NOTE OFF: Channel {message.channel}, Note {message.note}, Velocity {message.velocity}"
-            if endpoint:
-                msg_text += f" -> API: {endpoint}"
-                logger.debug("Displaying mapped note_off message to %s", endpoint)
-            else:
-                logger.debug("Displaying unmapped note_off message")
         elif message.type == 'control_change':
             msg_text = f"[{timestamp}] CONTROL CHANGE: Channel {message.channel}, Control {message.control}, Value {message.value}"
-            if endpoint:
-                msg_text += f" -> API: {endpoint}"
-                logger.debug("Displaying mapped control_change message to %s", endpoint)
-            else:
-                logger.debug("Displaying unmapped control_change message")
         else:
             msg_text = f"[{timestamp}] {message.type.upper()}: {message}"
-            logger.debug("Displaying other MIDI message type: %s", message.type)
+        
+        # Add endpoint and parameter info if available
+        if endpoint:
+            msg_text += f" -> API: {endpoint}"
+            
+            # Add parameter details if available
+            params_text = []
+            if query_params and len(query_params) > 0:
+                params_text.append(f"Query: {query_params}")
+            if body_params and len(body_params) > 0:
+                params_text.append(f"Body: {body_params}")
+                
+            if params_text:
+                msg_text += f" ({', '.join(params_text)})"
+                
+            logger.debug("Displaying mapped %s message to %s with parameters", message.type, endpoint)
+        else:
+            logger.debug("Displaying unmapped %s message", message.type)
         
         # Add to monitor
         self.monitor_text.append(msg_text)
