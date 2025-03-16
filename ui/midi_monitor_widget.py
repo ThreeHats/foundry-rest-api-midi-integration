@@ -1,9 +1,12 @@
+import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit,
     QLabel, QPushButton, QComboBox, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class MidiMonitorWidget(QWidget):
     def __init__(self, midi_handler):
@@ -13,6 +16,7 @@ class MidiMonitorWidget(QWidget):
         self.max_messages = 100
         self.filter_types = set()  # Empty set means no filtering
         
+        logger.info("Initializing MIDI monitor widget")
         self.init_ui()
         
         # Connect to MIDI signals
@@ -67,17 +71,21 @@ class MidiMonitorWidget(QWidget):
     def toggle_auto_scroll(self, state):
         """Toggle auto-scrolling"""
         self.auto_scroll = state == Qt.CheckState.Checked.value
+        logger.debug("Auto-scroll %s", "enabled" if self.auto_scroll else "disabled")
     
     def toggle_filter(self, msg_type, state):
         """Toggle filtering for a specific message type"""
         if state == Qt.CheckState.Checked.value:
             self.filter_types.add(msg_type)
+            logger.debug("Added filter for %s messages", msg_type)
         else:
             if msg_type in self.filter_types:
                 self.filter_types.remove(msg_type)
+                logger.debug("Removed filter for %s messages", msg_type)
     
     def clear_monitor(self):
         """Clear the monitor text"""
+        logger.debug("Clearing MIDI monitor display")
         self.monitor_text.clear()
         self.monitor_text.append("Monitor cleared.\n")
     
@@ -86,6 +94,7 @@ class MidiMonitorWidget(QWidget):
         """Handle MIDI signal"""
         # Apply filters if any are active
         if self.filter_types and message.type not in self.filter_types:
+            logger.debug("Filtered out %s message due to display filter", message.type)
             return
         
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -95,22 +104,33 @@ class MidiMonitorWidget(QWidget):
             msg_text = f"[{timestamp}] NOTE ON: Channel {message.channel}, Note {message.note}, Velocity {message.velocity}"
             if endpoint:
                 msg_text += f" -> API: {endpoint}"
+                logger.debug("Displaying mapped note_on message to %s", endpoint)
+            else:
+                logger.debug("Displaying unmapped note_on message")
         elif message.type == 'note_off':
             msg_text = f"[{timestamp}] NOTE OFF: Channel {message.channel}, Note {message.note}, Velocity {message.velocity}"
             if endpoint:
                 msg_text += f" -> API: {endpoint}"
+                logger.debug("Displaying mapped note_off message to %s", endpoint)
+            else:
+                logger.debug("Displaying unmapped note_off message")
         elif message.type == 'control_change':
             msg_text = f"[{timestamp}] CONTROL CHANGE: Channel {message.channel}, Control {message.control}, Value {message.value}"
             if endpoint:
                 msg_text += f" -> API: {endpoint}"
+                logger.debug("Displaying mapped control_change message to %s", endpoint)
+            else:
+                logger.debug("Displaying unmapped control_change message")
         else:
             msg_text = f"[{timestamp}] {message.type.upper()}: {message}"
+            logger.debug("Displaying other MIDI message type: %s", message.type)
         
         # Add to monitor
         self.monitor_text.append(msg_text)
         
         # Limit the number of messages
         if self.monitor_text.document().lineCount() > self.max_messages:
+            logger.debug("Trimming MIDI monitor display (exceeded %d lines)", self.max_messages)
             cursor = self.monitor_text.textCursor()
             cursor.movePosition(cursor.MoveOperation.Start)
             cursor.movePosition(cursor.MoveOperation.Down, cursor.MoveMode.KeepAnchor)

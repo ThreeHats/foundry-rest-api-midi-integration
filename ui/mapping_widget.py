@@ -1,3 +1,4 @@
+import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
     QLabel, QPushButton, QComboBox, QTableWidget, 
@@ -5,6 +6,8 @@ from PyQt6.QtWidgets import (
     QSpinBox, QGroupBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
+
+logger = logging.getLogger(__name__)
 
 class MappingWidget(QWidget):
     mapping_changed_signal = pyqtSignal(dict)
@@ -15,6 +18,8 @@ class MappingWidget(QWidget):
         self.api_client = api_client
         self.learning_mode = False
         self.current_midi_message = None
+        
+        logger.info("Initializing MIDI mapping widget")
         
         # Connect signals
         self.midi_handler.midi_devices_changed.connect(self.update_midi_devices)
@@ -112,11 +117,13 @@ class MappingWidget(QWidget):
     
     def refresh_midi_devices(self):
         """Refresh MIDI device list"""
+        logger.debug("Refreshing MIDI device list")
         devices = self.midi_handler.refresh_devices()
         self.update_midi_devices(devices)
     
     def update_midi_devices(self, devices):
         """Update MIDI device dropdown"""
+        logger.debug("Updating MIDI device dropdown with %d devices", len(devices))
         current_device = self.midi_device_combo.currentText()
         self.midi_device_combo.clear()
         
@@ -131,12 +138,14 @@ class MappingWidget(QWidget):
         
         # If we have a current device connected, update the button text
         if self.midi_handler.current_device:
+            logger.debug("Currently connected to MIDI device: %s", self.midi_handler.current_device)
             self.connect_button.setText("Disconnect")
         else:
             self.connect_button.setText("Connect")
     
     def update_endpoints(self, endpoints):
         """Update API endpoints dropdown"""
+        logger.debug("Updating API endpoints dropdown with %d endpoints", len(endpoints))
         current_endpoint = self.endpoint_combo.currentText()
         self.endpoint_combo.clear()
         
@@ -153,6 +162,7 @@ class MappingWidget(QWidget):
         """Connect or disconnect from MIDI device"""
         if self.midi_handler.current_device:
             # Disconnect
+            logger.info("Disconnecting from MIDI device: %s", self.midi_handler.current_device)
             self.midi_handler.close()
             self.midi_handler.current_device = None
             self.connect_button.setText("Connect")
@@ -160,9 +170,11 @@ class MappingWidget(QWidget):
             # Connect
             device = self.midi_device_combo.currentText()
             if device:
+                logger.info("Connecting to MIDI device: %s", device)
                 if self.midi_handler.connect_to_device(device):
                     self.connect_button.setText("Disconnect")
                 else:
+                    logger.error("Failed to connect to MIDI device: %s", device)
                     QMessageBox.warning(self, "Connection Error", 
                                      f"Failed to connect to {device}")
     
@@ -170,9 +182,11 @@ class MappingWidget(QWidget):
         """Toggle MIDI learn mode"""
         self.learning_mode = self.learn_button.isChecked()
         if self.learning_mode:
+            logger.info("MIDI learn mode activated")
             self.learn_button.setText("Listening...")
             self.current_midi_message = None
         else:
+            logger.info("MIDI learn mode deactivated")
             self.learn_button.setText("MIDI Learn")
     
     def on_midi_received(self, message, endpoint=None):
@@ -183,6 +197,7 @@ class MappingWidget(QWidget):
                 if message.type == 'note_on' and message.velocity == 0:
                     return  # Ignore note_on with velocity 0 (equivalent to note_off)
                 
+                logger.info("MIDI learn captured: %s", message)
                 self.signal_type_combo.setCurrentText(message.type)
                 self.channel_spin.setValue(message.channel)
                 
@@ -203,11 +218,14 @@ class MappingWidget(QWidget):
         endpoint = self.endpoint_combo.currentText()
         
         if not endpoint:
+            logger.warning("Missing endpoint when adding mapping")
             QMessageBox.warning(self, "Missing Information", 
                              "Please select or enter an API endpoint")
             return
         
         # Add mapping
+        logger.info("Adding MIDI mapping: (%s, %d, %d) -> %s", 
+                   msg_type, channel, note_or_control, endpoint)
         self.midi_handler.add_mapping(msg_type, channel, note_or_control, endpoint)
         
         # Refresh display
@@ -223,8 +241,11 @@ class MappingWidget(QWidget):
             msg_type = self.mappings_table.item(selected_row, 0).text()
             channel = int(self.mappings_table.item(selected_row, 1).text())
             note_or_control = int(self.mappings_table.item(selected_row, 2).text())
+            endpoint = self.mappings_table.item(selected_row, 3).text()
             
             # Remove mapping
+            logger.info("Deleting MIDI mapping: (%s, %d, %d) -> %s", 
+                       msg_type, channel, note_or_control, endpoint)
             self.midi_handler.remove_mapping(msg_type, channel, note_or_control)
             
             # Refresh display
@@ -232,9 +253,12 @@ class MappingWidget(QWidget):
             
             # Notify change
             self.mapping_changed_signal.emit(self.midi_handler.mappings)
+        else:
+            logger.warning("Attempted to delete mapping with no row selected")
     
     def refresh_mappings(self):
         """Refresh the mappings table"""
+        logger.debug("Refreshing mappings table with %d mappings", len(self.midi_handler.mappings))
         self.mappings_table.setRowCount(0)
         
         for (msg_type, channel, note_control), endpoint in self.midi_handler.mappings.items():

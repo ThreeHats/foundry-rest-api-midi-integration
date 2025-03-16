@@ -1,5 +1,8 @@
 import requests
+import logging
 from PyQt6.QtCore import QObject, pyqtSignal
+
+logger = logging.getLogger(__name__)
 
 class ApiClient(QObject):
     api_status_changed = pyqtSignal(bool, str)
@@ -12,6 +15,7 @@ class ApiClient(QObject):
         self.api_key = ""
         self.client_id = ""
         self.available_endpoints = []
+        logger.debug("API client initialized")
     
     def set_api_config(self, url, key, client_id=""):
         """Set API configuration"""
@@ -19,55 +23,73 @@ class ApiClient(QObject):
         self.api_key = key
         self.client_id = client_id
         
+        logger.info("API configuration set: URL=%s, Client ID=%s", url, client_id)
+        
         # Test connection
         if url and key:
+            logger.debug("Testing API connection")
             self.test_connection()
     
     def test_connection(self):
         """Test API connection and fetch available endpoints"""
         try:
+            logger.debug("Making test request to API root endpoint")
             response = self._make_request("GET", "/")
             if response.status_code == 200:
+                logger.info("API connection test successful")
                 self.api_status_changed.emit(True, "Connected successfully")
                 self.fetch_clients()
                 self.fetch_available_endpoints()
                 return True
             else:
+                logger.warning("API connection failed: Status code %d", response.status_code)
                 self.api_status_changed.emit(False, f"Failed with status code: {response.status_code}")
                 return False
         except Exception as e:
+            logger.error("API connection test error: %s", str(e))
             self.api_status_changed.emit(False, str(e))
             return False
     
     def fetch_clients(self):
         """Fetch available clients from the API"""
         try:
+            logger.debug("Fetching clients from API")
             response = self._make_request("GET", "/clients")
             if response.status_code == 200:
                 response_data = response.json()
+                logger.debug("Clients response: %s", response_data)
+                
                 if "clients" in response_data and isinstance(response_data["clients"], list):
                     clients = response_data["clients"]
+                    logger.info("Successfully fetched %d clients", len(clients))
                     self.clients_loaded.emit(clients)
                     return clients
                 else:
+                    logger.warning("Invalid client data format in response")
                     self.api_status_changed.emit(False, "Invalid client data format")
                     return []
+            logger.warning("Failed to fetch clients: Status code %d", response.status_code)
             return []
         except Exception as e:
+            logger.error("Error fetching clients: %s", str(e))
             self.api_status_changed.emit(False, f"Failed to fetch clients: {str(e)}")
             return []
     
     def fetch_available_endpoints(self):
         """Fetch available endpoints from the API"""
         try:
+            logger.debug("Fetching available endpoints from API")
             response = self._make_request("GET", "/endpoints")
             if response.status_code == 200:
                 endpoints = response.json()
                 self.available_endpoints = endpoints
+                logger.info("Successfully fetched %d endpoints", len(endpoints))
                 self.endpoints_loaded.emit(endpoints)
                 return endpoints
+            logger.warning("Failed to fetch endpoints: Status code %d", response.status_code)
             return []
         except Exception as e:
+            logger.error("Error fetching endpoints: %s", str(e))
             self.api_status_changed.emit(False, f"Failed to fetch endpoints: {str(e)}")
             return []
     
@@ -79,11 +101,15 @@ class ApiClient(QObject):
         headers = {'x-api-key': self.api_key}
         if self.client_id:
             headers['Client-ID'] = self.client_id
+        
+        logger.debug("Calling API endpoint: %s", endpoint)
             
         try:
             response = self._make_request("POST", endpoint, json=data)
+            logger.debug("API response status: %d", response.status_code)
             return response.json() if response.content else {'success': True}
         except Exception as e:
+            logger.error("API call failed: %s - %s", endpoint, str(e))
             raise Exception(f"API call failed: {str(e)}")
     
     def _make_request(self, method, endpoint, **kwargs):
@@ -98,4 +124,7 @@ class ApiClient(QObject):
             headers['Client-ID'] = self.client_id
         
         kwargs['headers'] = headers
-        return requests.request(method, f"{self.api_url}{endpoint}", **kwargs)
+        url = f"{self.api_url}{endpoint}"
+        
+        logger.debug("%s request to %s", method, url)
+        return requests.request(method, url, **kwargs)

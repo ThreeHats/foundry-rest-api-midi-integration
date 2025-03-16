@@ -1,3 +1,4 @@
+import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QComboBox,
@@ -5,12 +6,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
+logger = logging.getLogger(__name__)
+
 class ConfigWidget(QWidget):
     save_config_signal = pyqtSignal(str, str, str)
     
     def __init__(self, api_client):
         super().__init__()
         self.api_client = api_client
+        logger.debug("Initializing config widget")
         self.init_ui()
         
         # Connect API client signals
@@ -86,6 +90,7 @@ class ConfigWidget(QWidget):
     
     def load_config(self):
         """Load existing configuration"""
+        logger.debug("Loading existing API configuration")
         self.api_url_input.setText(self.api_client.api_url)
         self.api_key_input.setText(self.api_client.api_key)
     
@@ -95,10 +100,12 @@ class ConfigWidget(QWidget):
         key = self.api_key_input.text().strip()
         
         if not url or not key:
+            logger.warning("Missing API URL or key for connection test")
             QMessageBox.warning(self, "Missing Information", 
                               "Please enter both API URL and API Key")
             return
         
+        logger.info("Testing connection to API: %s", url)
         self.status_label.setText("Testing connection...")
         self.api_client.set_api_config(url, key)
         # The result will be handled by the on_api_status_changed slot
@@ -106,29 +113,35 @@ class ConfigWidget(QWidget):
     def on_api_status_changed(self, success, message):
         """Handle API connection status changes"""
         if success:
+            logger.info("API connection succeeded: %s", message)
             self.status_label.setText(f"Connected: {message}")
             self.status_label.setStyleSheet("color: green")
             self.client_combo.setEnabled(True)
         else:
+            logger.warning("API connection failed: %s", message)
             self.status_label.setText(f"Error: {message}")
             self.status_label.setStyleSheet("color: red")
             self.client_combo.setEnabled(False)
     
     def fetch_clients(self):
         """Fetch clients from the API"""
+        logger.debug("Requesting client list from API")
         self.api_client.fetch_clients()
     
     def on_clients_loaded(self, clients):
         """Handle loaded clients"""
+        logger.info("Received %d clients from API", len(clients))
         self.client_combo.clear()
         self.client_combo.addItem("Select a client", "")
         
         for client in clients:
             # Client is now a string ID like "foundry-rQLkX9c1U2Tzkyh8"
+            logger.debug("Adding client: %s", client)
             self.client_combo.addItem(client, client)
         
         # Select current client if it exists
         if self.api_client.client_id:
+            logger.debug("Setting current client to: %s", self.api_client.client_id)
             index = self.client_combo.findData(self.api_client.client_id)
             if index != -1:
                 self.client_combo.setCurrentIndex(index)
@@ -140,10 +153,12 @@ class ConfigWidget(QWidget):
         client_id = self.client_combo.currentData()
         
         if not url or not key:
+            logger.warning("Missing API URL or key when saving configuration")
             QMessageBox.warning(self, "Missing Information", 
                               "Please enter both API URL and API Key")
             return
         
+        logger.info("Saving API configuration: URL=%s, Client ID=%s", url, client_id)
         self.save_config_signal.emit(url, key, client_id)
         QMessageBox.information(self, "Configuration Saved", 
                              "API configuration has been saved.")
