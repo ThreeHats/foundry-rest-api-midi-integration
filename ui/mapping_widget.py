@@ -23,7 +23,13 @@ class MappingWidget(QWidget):
         
         # Connect signals
         self.midi_handler.midi_devices_changed.connect(self.update_midi_devices)
-        self.midi_handler.midi_signal_received.connect(self.on_midi_received)
+        # Fix: This connection doesn't work for learning mode, we need to listen for raw MIDI messages
+        # self.midi_handler.midi_signal_received.connect(self.on_midi_received)
+        
+        # Fix: Connect to the MIDI listener thread's raw signals instead
+        if self.midi_handler.listener_thread:
+            self.midi_handler.listener_thread.midi_event.connect(self.on_raw_midi_message)
+        
         self.api_client.endpoints_loaded.connect(self.update_endpoints)
         
         self.init_ui()
@@ -177,6 +183,14 @@ class MappingWidget(QWidget):
         if self.midi_handler.current_device:
             # Disconnect
             logger.info("Disconnecting from MIDI device: %s", self.midi_handler.current_device)
+            # Fix: Disconnect signal before closing
+            if self.midi_handler.listener_thread:
+                try:
+                    self.midi_handler.listener_thread.midi_event.disconnect(self.on_raw_midi_message)
+                except TypeError:
+                    # Signal wasn't connected
+                    pass
+                    
             self.midi_handler.close()
             self.midi_handler.current_device = None
             self.connect_button.setText("Connect")
@@ -186,6 +200,9 @@ class MappingWidget(QWidget):
             if device:
                 logger.info("Connecting to MIDI device: %s", device)
                 if self.midi_handler.connect_to_device(device):
+                    # Fix: Connect to the new thread's signal
+                    if self.midi_handler.listener_thread:
+                        self.midi_handler.listener_thread.midi_event.connect(self.on_raw_midi_message)
                     self.connect_button.setText("Disconnect")
                 else:
                     logger.error("Failed to connect to MIDI device: %s", device)
@@ -203,13 +220,15 @@ class MappingWidget(QWidget):
             logger.info("MIDI learn mode deactivated")
             self.learn_button.setText("MIDI Learn")
     
-    def on_midi_received(self, message, endpoint=None):
-        """Handle received MIDI message"""
+    def on_raw_midi_message(self, message):
+        """Handle raw MIDI messages from the device for MIDI learn mode"""
         if self.learning_mode:
-            # In learn mode, store the received message
+            logger.debug("Learning mode received MIDI message: %s", message)
+            # Process note_on, note_off, and control_change messages
             if message.type in ['note_on', 'note_off', 'control_change']:
+                # Ignore note_on with velocity 0 (equivalent to note_off)
                 if message.type == 'note_on' and message.velocity == 0:
-                    return  # Ignore note_on with velocity 0 (equivalent to note_off)
+                    return
                 
                 logger.info("MIDI learn captured: %s", message)
                 self.signal_type_combo.setCurrentText(message.type)
@@ -220,9 +239,15 @@ class MappingWidget(QWidget):
                 elif message.type == 'control_change':
                     self.note_control_spin.setValue(message.control)
                 
+                # Store the message and exit learning mode
                 self.current_midi_message = message
                 self.learn_button.setChecked(False)
                 self.toggle_learn_mode()
+    
+    def on_midi_received(self, message, endpoint=None):
+        """Handle mapped MIDI signals (not for learning)"""
+        # We use this method for other purposes not related to learning mode
+        pass
     
     def add_mapping(self):
         """Add a new MIDI mapping"""

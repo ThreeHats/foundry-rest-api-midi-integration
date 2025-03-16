@@ -75,6 +75,7 @@ class MidiHandler(QObject):
             return True
         except Exception as e:
             logger.error("Failed to connect to MIDI device: %s - %s", device_name, str(e))
+            self.listener_thread = None  # Fix: Clear the reference if connection failed
             return False
     
     def set_mappings(self, mappings: Dict[Tuple, str]):
