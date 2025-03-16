@@ -141,9 +141,22 @@ class ConfigWidget(QWidget):
         self.client_combo.addItem("Select a client", "")
         
         for client in clients:
-            # Client is now a string ID like "foundry-rQLkX9c1U2Tzkyh8"
-            logger.debug("Adding client: %s", client)
-            self.client_combo.addItem(client, client)
+            # Client is now a dictionary with id, instanceId, lastSeen, etc.
+            if isinstance(client, dict) and "id" in client:
+                client_id = client["id"]
+                instance_id = client.get("instanceId", "")
+                
+                # Use instance ID as additional info if available
+                display_text = client_id
+                if instance_id:
+                    display_text = f"{client_id} ({instance_id})"
+                    
+                logger.debug("Adding client: %s", client_id)
+                self.client_combo.addItem(display_text, client_id)
+            elif isinstance(client, str):
+                # Handle legacy format where client is just a string
+                logger.debug("Adding client (legacy format): %s", client)
+                self.client_combo.addItem(client, client)
         
         # Select current client if it exists
         if self.api_client.client_id:
