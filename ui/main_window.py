@@ -1,7 +1,7 @@
 import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QLabel, QStatusBar, QPushButton, QSplitter
+    QLabel, QStatusBar, QPushButton, QSplitter, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer
 from ui.config_widget import ConfigWidget
@@ -48,6 +48,12 @@ class MainWindow(QWidget):
         # Status bar
         self.status_layout = QHBoxLayout()
         self.status_label = QLabel("Ready")
+        self.status_label.setWordWrap(True)  # Enable word wrapping
+        self.status_label.setMinimumHeight(20)  # Ensure minimum height for readability
+        
+        # Set size policy to prevent horizontal expansion
+        self.status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        
         self.status_layout.addWidget(self.status_label)
         
         # Import/Export buttons
@@ -67,7 +73,7 @@ class MainWindow(QWidget):
         main_layout.addLayout(self.status_layout)
         
         # Size the window
-        self.resize(800, 600)
+        self.resize(1200, 1000)
         logger.debug("Main window UI initialized")
     
     def show_status(self, message):

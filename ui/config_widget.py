@@ -2,7 +2,7 @@ import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QComboBox,
-    QGroupBox, QMessageBox
+    QGroupBox, QMessageBox, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -52,6 +52,8 @@ class ConfigWidget(QWidget):
         
         # Connection status
         self.status_label = QLabel("Not connected")
+        self.status_label.setWordWrap(True)  # Enable word wrapping
+        self.status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         api_layout.addRow("Status:", self.status_label)
         
         # Client Configuration group
@@ -122,6 +124,10 @@ class ConfigWidget(QWidget):
             self.status_label.setText(f"Error: {message}")
             self.status_label.setStyleSheet("color: red")
             self.client_combo.setEnabled(False)
+        
+        # Make sure the status label doesn't expand the layout
+        self.status_label.setMinimumWidth(200)  # Set a reasonable minimum width
+        self.adjustSize()  # Adjust the size of the widget to fit contents
     
     def fetch_clients(self):
         """Fetch clients from the API"""

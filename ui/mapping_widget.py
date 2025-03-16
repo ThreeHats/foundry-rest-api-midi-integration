@@ -59,13 +59,12 @@ class MappingWidget(QWidget):
         self.midi_device_combo = QComboBox()
         midi_layout.addWidget(self.midi_device_combo)
         
-        self.refresh_midi_button = QPushButton("Refresh Devices")
+        self.refresh_midi_button = QPushButton("Refresh")
         self.refresh_midi_button.clicked.connect(self.refresh_midi_devices)
         midi_layout.addWidget(self.refresh_midi_button)
         
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.connect_to_device)
-        self.connect_button.setStyleSheet("font-weight: bold; font-size: 12pt;")  # Make it prominent
         midi_layout.addWidget(self.connect_button)
         
         connect_layout.addWidget(midi_group)

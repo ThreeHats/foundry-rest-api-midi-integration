@@ -147,3 +147,9 @@ QCheckBox::indicator:checked {
     border-radius: 3px;
     background-color: #0078d7;
 }
+
+/* Labels */
+QLabel {
+    font-size: 10pt;
+    color: #333333;
+}
