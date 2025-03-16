@@ -1,6 +1,7 @@
 import requests
 import logging
 from PyQt6.QtCore import QObject, pyqtSignal
+from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
@@ -76,20 +77,48 @@ class ApiClient(QObject):
             return []
     
     def fetch_available_endpoints(self):
-        """Fetch available endpoints from the API"""
+        """Fetch available endpoints from the API documentation"""
         try:
-            logger.debug("Fetching available endpoints from API")
-            response = self._make_request("GET", "/endpoints")
+            logger.debug("Fetching available endpoints from API docs")
+            response = self._make_request("GET", "/api/docs")
             if response.status_code == 200:
-                endpoints = response.json()
-                self.available_endpoints = endpoints
-                logger.info("Successfully fetched %d endpoints", len(endpoints))
-                self.endpoints_loaded.emit(endpoints)
-                return endpoints
-            logger.warning("Failed to fetch endpoints: Status code %d", response.status_code)
+                api_docs = response.json()
+                
+                if "endpoints" in api_docs and isinstance(api_docs["endpoints"], list):
+                    # Extract endpoints from the documentation
+                    endpoints = []
+                    for endpoint_info in api_docs["endpoints"]:
+                        method = endpoint_info.get("method", "")
+                        path = endpoint_info.get("path", "")
+                        description = endpoint_info.get("description", "")
+                        
+                        # Skip documentation endpoints
+                        if path in ["/api/docs", "/health", "/api/status"]:
+                            continue
+                            
+                        # Format endpoint for display
+                        formatted_endpoint = f"{method} {path}"
+                        endpoints.append({
+                            "display": formatted_endpoint,
+                            "method": method,
+                            "path": path,
+                            "description": description
+                        })
+                    
+                    self.available_endpoints = endpoints
+                    logger.info("Successfully fetched %d endpoints from API docs", len(endpoints))
+                    
+                    # Extract just the path values for backward compatibility with existing code
+                    endpoint_paths = [e["path"] for e in endpoints]
+                    self.endpoints_loaded.emit(endpoint_paths)
+                    return endpoints
+                else:
+                    logger.warning("Invalid API docs format - missing 'endpoints' array")
+            else:
+                logger.warning("Failed to fetch API docs: Status code %d", response.status_code)
             return []
         except Exception as e:
-            logger.error("Error fetching endpoints: %s", str(e))
+            logger.error("Error fetching API docs: %s", str(e))
             self.api_status_changed.emit(False, f"Failed to fetch endpoints: {str(e)}")
             return []
     

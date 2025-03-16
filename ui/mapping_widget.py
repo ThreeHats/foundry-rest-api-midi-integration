@@ -149,8 +149,22 @@ class MappingWidget(QWidget):
         current_endpoint = self.endpoint_combo.currentText()
         self.endpoint_combo.clear()
         
-        for endpoint in endpoints:
-            self.endpoint_combo.addItem(endpoint)
+        # Check if we received the full endpoint objects or just paths
+        if endpoints and isinstance(endpoints[0], dict):
+            # We have full endpoint info
+            for endpoint in endpoints:
+                display = endpoint.get("display", "")
+                path = endpoint.get("path", "")
+                description = endpoint.get("description", "")
+                
+                # Add to dropdown with tooltip
+                self.endpoint_combo.addItem(f"{endpoint['method']} {path}", path)
+                index = self.endpoint_combo.count() - 1
+                self.endpoint_combo.setItemData(index, description, Qt.ItemDataRole.ToolTipRole)
+        else:
+            # Just paths (backward compatibility)
+            for endpoint in endpoints:
+                self.endpoint_combo.addItem(endpoint)
         
         # Restore previously selected endpoint if available
         if current_endpoint:
@@ -215,7 +229,13 @@ class MappingWidget(QWidget):
         msg_type = self.signal_type_combo.currentText()
         channel = self.channel_spin.value()
         note_or_control = self.note_control_spin.value()
-        endpoint = self.endpoint_combo.currentText()
+        
+        # Get endpoint path (might be stored in the item data)
+        endpoint_index = self.endpoint_combo.currentIndex()
+        if endpoint_index >= 0:
+            endpoint = self.endpoint_combo.itemData(endpoint_index) or self.endpoint_combo.currentText()
+        else:
+            endpoint = self.endpoint_combo.currentText()
         
         if not endpoint:
             logger.warning("Missing endpoint when adding mapping")
