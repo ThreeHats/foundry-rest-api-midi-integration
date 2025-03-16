@@ -310,19 +310,21 @@ class MappingWidget(QWidget):
         # Show parameter dialog if we have endpoint data
         query_params = {}
         body_params = {}
+        path_params = {}
         
         if endpoint_data:
-            param_dialog = ParameterDialog(endpoint_data, {}, {}, self)
+            param_dialog = ParameterDialog(endpoint_data, {}, {}, {}, self)
             if param_dialog.exec():
-                query_params, body_params = param_dialog.get_parameters()
-                logger.debug("Parameter dialog returned: query=%s, body=%s", query_params, body_params)
+                query_params, body_params, path_params = param_dialog.get_parameters()
+                logger.debug("Parameter dialog returned: query=%s, body=%s, path=%s", 
+                            query_params, body_params, path_params)
         
         # Add mapping with parameters
         logger.info("Adding MIDI mapping: (%s, %d, %d) -> %s with params", 
                    msg_type, channel, note_or_control, endpoint_path)
         self.midi_handler.add_mapping(
             msg_type, channel, note_or_control, 
-            endpoint_path, query_params, body_params
+            endpoint_path, query_params, body_params, path_params
         )
         
         # Refresh display
@@ -414,11 +416,13 @@ class MappingWidget(QWidget):
             endpoint = mapping_data.get("endpoint", "")
             query_params = mapping_data.get("query_params", {})
             body_params = mapping_data.get("body_params", {})
+            path_params = mapping_data.get("path_params", {})
         else:
             # Legacy format: just the endpoint string
             endpoint = mapping_data
             query_params = {}
             body_params = {}
+            path_params = {}
         
         # Find endpoint data
         endpoint_data = None
@@ -437,14 +441,14 @@ class MappingWidget(QWidget):
             }
         
         # Show parameter dialog
-        param_dialog = ParameterDialog(endpoint_data, query_params, body_params, self)
+        param_dialog = ParameterDialog(endpoint_data, query_params, body_params, path_params, self)
         if param_dialog.exec():
-            new_query_params, new_body_params = param_dialog.get_parameters()
+            new_query_params, new_body_params, new_path_params = param_dialog.get_parameters()
             
             # Update the mapping
             self.midi_handler.add_mapping(
                 msg_type, channel, note_or_control, 
-                endpoint, new_query_params, new_body_params
+                endpoint, new_query_params, new_body_params, new_path_params
             )
             
             # Refresh display

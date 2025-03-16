@@ -151,10 +151,33 @@ class ApiClient(QObject):
             self.api_status_changed.emit(False, f"Failed to fetch endpoints: {str(e)}")
             return []
     
-    def call_endpoint(self, endpoint, params=None, data=None):
-        """Call a specific endpoint with parameters - optimized for performance"""
+    def call_endpoint(self, endpoint, params=None, data=None, path_params=None):
+        """Call a specific endpoint with parameters - optimized for performance
+        
+        Args:
+            endpoint (str): The endpoint path with potential path variables
+            params (dict, optional): Query parameters
+            data (dict, optional): Body data
+            path_params (dict, optional): Path parameter values to substitute
+        """
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
+        
+        # Replace path variables with actual values if provided
+        if path_params:
+            # Process path variables (replace :variable with actual value)
+            path_parts = endpoint.split('/')
+            for i, part in enumerate(path_parts):
+                if part and part.startswith(':'):
+                    var_name = part[1:]  # Remove the colon
+                    if var_name in path_params:
+                        # Replace with the actual value
+                        path_parts[i] = path_params[var_name]
+                    else:
+                        logger.warning("Missing path parameter value for %s", var_name)
+            
+            # Reconstruct the endpoint path
+            endpoint = '/'.join(path_parts)
             
         headers = {'x-api-key': self.api_key}
         if self.client_id:

@@ -95,16 +95,21 @@ class MidiRestApp(QMainWindow):
         self.midi_handler.set_mappings(mappings)
         self.save_settings()
     
-    def on_midi_signal(self, midi_event, endpoint, query_params, body_params):
+    def on_midi_signal(self, midi_event, endpoint, query_params, body_params, path_params):
         """Optimized handler for MIDI signals triggering API calls"""
         try:
             # Only log in dev mode to avoid performance overhead
             if self.dev_mode:
-                logger.debug("MIDI signal triggered API call: %s with params: %s, %s", 
-                           endpoint, query_params, body_params)
+                logger.debug("MIDI signal triggered API call: %s with params: %s, %s, path: %s", 
+                           endpoint, query_params, body_params, path_params)
             
             # Make the API call directly
-            response = self.api_client.call_endpoint(endpoint, params=query_params, data=body_params)
+            response = self.api_client.call_endpoint(
+                endpoint, 
+                params=query_params, 
+                data=body_params,
+                path_params=path_params
+            )
             
             # Update UI status in a non-blocking way - this might have been blocking the MIDI thread
             self.ui.show_status_nonblocking(f"API call: {endpoint}")

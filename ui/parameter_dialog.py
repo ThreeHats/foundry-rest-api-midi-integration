@@ -9,21 +9,35 @@ from PyQt6.QtCore import Qt
 logger = logging.getLogger(__name__)
 
 class ParameterDialog(QDialog):
-    def __init__(self, endpoint_data, query_params=None, body_params=None, parent=None):
+    def __init__(self, endpoint_data, query_params=None, body_params=None, path_params=None, parent=None):
         """Dialog for configuring endpoint parameters
         
         Args:
             endpoint_data (dict): The endpoint information from API docs
             query_params (dict, optional): Existing query parameters
             body_params (dict, optional): Existing body parameters
+            path_params (dict, optional): Existing path parameters
             parent (QWidget, optional): Parent widget
         """
         super().__init__(parent)
         self.endpoint_data = endpoint_data
         self.query_params = query_params or {}
         self.body_params = body_params or {}
+        self.path_params = path_params or {}
         self.required_param_inputs = {}  # To track inputs for required parameters
         self.optional_param_inputs = {}  # To track inputs for optional parameters
+        self.path_param_inputs = {}  # To track inputs for path parameters
+        
+        # Extract path variables from the endpoint path
+        self.path_variables = []
+        path = endpoint_data.get("path", "")
+        if path:
+            # Parse path variables (format: /path/:variable/next)
+            parts = path.split('/')
+            for part in parts:
+                if part and part.startswith(':'):
+                    var_name = part[1:]  # Remove the leading colon
+                    self.path_variables.append(var_name)
         
         self.setup_ui()
         
@@ -49,6 +63,38 @@ class ParameterDialog(QDialog):
         
         # Create parameter tabs
         param_tabs = QTabWidget()
+        
+        # Create path parameters tab if needed
+        if self.path_variables:
+            path_tab = QWidget()
+            path_layout = QVBoxLayout(path_tab)
+            path_scroll = QScrollArea()
+            path_scroll.setWidgetResizable(True)
+            path_scroll_content = QWidget()
+            path_form = QFormLayout(path_scroll_content)
+            
+            # Add a label explaining path variables
+            path_form.addRow(QLabel("These values will replace variables in the endpoint URL path."))
+            path_form.addRow(QLabel(f"Endpoint: {self.endpoint_data.get('path', '')}"))
+            path_form.addRow(QLabel(""))  # Spacer
+            
+            for var_name in self.path_variables:
+                input_field = QLineEdit()
+                
+                # Set existing value if available
+                if var_name in self.path_params:
+                    input_field.setText(str(self.path_params[var_name]))
+                
+                # Add to form
+                label_text = f"{var_name}:"
+                path_form.addRow(label_text, input_field)
+                
+                # Store the input field reference
+                self.path_param_inputs[var_name] = input_field
+            
+            path_scroll.setWidget(path_scroll_content)
+            path_layout.addWidget(path_scroll)
+            param_tabs.addTab(path_tab, "Path Variables")
         
         # Create required parameters tab
         required_tab = QWidget()
@@ -156,6 +202,20 @@ class ParameterDialog(QDialog):
     
     def accept_parameters(self):
         """Validate and accept parameters"""
+        # Check path parameters (all are required)
+        missing_path = []
+        for var_name, input_field in self.path_param_inputs.items():
+            if not input_field.text().strip():
+                missing_path.append(var_name)
+        
+        if missing_path:
+            QMessageBox.warning(
+                self, 
+                "Missing Path Variables",
+                f"Please provide values for the following path variables: {', '.join(missing_path)}"
+            )
+            return
+        
         # Check required parameters
         missing_required = []
         for (param_name, param_location), input_field in self.required_param_inputs.items():
@@ -177,10 +237,17 @@ class ParameterDialog(QDialog):
         """Get the configured parameters
         
         Returns:
-            tuple: (query_params, body_params)
+            tuple: (query_params, body_params, path_params)
         """
         query_params = {}
         body_params = {}
+        path_params = {}
+        
+        # Process path parameters
+        for var_name, input_field in self.path_param_inputs.items():
+            value = input_field.text().strip()
+            if value:
+                path_params[var_name] = value
         
         # Process required parameters
         for (param_name, param_location), input_field in self.required_param_inputs.items():
@@ -200,4 +267,4 @@ class ParameterDialog(QDialog):
                 elif param_location == "body":
                     body_params[param_name] = value
         
-        return query_params, body_params
+        return query_params, body_params, path_params

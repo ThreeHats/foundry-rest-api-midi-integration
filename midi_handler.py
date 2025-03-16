@@ -58,7 +58,7 @@ class MidiListenerThread(QThread):
 
 
 class MidiHandler(QObject):
-    midi_signal_received = pyqtSignal(object, str, dict, dict)  # message, endpoint, query_params, body_params
+    midi_signal_received = pyqtSignal(object, str, dict, dict, dict)  # message, endpoint, query_params, body_params, path_params
     midi_devices_changed = pyqtSignal(list)
     
     def __init__(self, auto_connect=False):
@@ -125,16 +125,18 @@ class MidiHandler(QObject):
     def add_mapping(self, msg_type: str, channel: int, 
                     note_or_control: int, endpoint: str,
                     query_params: dict = None,
-                    body_params: dict = None):
+                    body_params: dict = None,
+                    path_params: dict = None):
         """Add a new MIDI mapping with parameters"""
         key = (msg_type, channel, note_or_control)
         self.mappings[key] = {
             "endpoint": endpoint,
             "query_params": query_params or {},
-            "body_params": body_params or {}
+            "body_params": body_params or {},
+            "path_params": path_params or {}
         }
-        logger.info("Added MIDI mapping: (%s, %d, %d) -> %s with params: query=%s, body=%s", 
-                   msg_type, channel, note_or_control, endpoint, query_params, body_params)
+        logger.info("Added MIDI mapping: (%s, %d, %d) -> %s with params", 
+                   msg_type, channel, note_or_control, endpoint)
     
     def remove_mapping(self, msg_type: str, channel: int, note_or_control: int):
         """Remove a MIDI mapping"""
@@ -167,14 +169,16 @@ class MidiHandler(QObject):
                 endpoint = mapping_data["endpoint"]
                 query_params = mapping_data.get("query_params", {})
                 body_params = mapping_data.get("body_params", {})
+                path_params = mapping_data.get("path_params", {})
             else:
                 # Legacy format: just the endpoint string
                 endpoint = mapping_data
                 query_params = {}
                 body_params = {}
+                path_params = {}
                 
-            # Emit the signal directly without logging in the critical path
-            self.midi_signal_received.emit(message, endpoint, query_params, body_params)
+            # Update the signal to include path parameters
+            self.midi_signal_received.emit(message, endpoint, query_params, body_params, path_params)
     
     def close(self):
         """Close MIDI connections"""
