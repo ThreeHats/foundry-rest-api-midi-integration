@@ -369,9 +369,12 @@ class MappingWidget(QWidget):
                 endpoint = mapping_data.get("endpoint", "")
                 query_params = mapping_data.get("query_params", {})
                 body_params = mapping_data.get("body_params", {})
+                path_params = mapping_data.get("path_params", {})
                 
                 # Show parameter indicators in endpoint display
                 param_indicators = []
+                if path_params:
+                    param_indicators.append(f"Path:{len(path_params)}")
                 if query_params:
                     param_indicators.append(f"Q:{len(query_params)}")
                 if body_params:
@@ -381,14 +384,38 @@ class MappingWidget(QWidget):
                     display_endpoint = f"{endpoint} [{' '.join(param_indicators)}]"
                 else:
                     display_endpoint = endpoint
+                    
+                # Create detailed tooltip with parameter details
+                tooltip = f"Endpoint: {endpoint}\n"
+                if path_params:
+                    tooltip += "\nPath Parameters:\n"
+                    for name, value in path_params.items():
+                        tooltip += f"  {name}: {value}\n"
+                if query_params:
+                    tooltip += "\nQuery Parameters:\n"
+                    for name, value in query_params.items():
+                        tooltip += f"  {name}: {value}\n"
+                if body_params:
+                    tooltip += "\nBody Parameters:\n"
+                    for name, value in body_params.items():
+                        tooltip += f"  {name}: {value}\n"
             else:
                 # Legacy format: just the endpoint string
                 display_endpoint = mapping_data
+                tooltip = f"Endpoint: {mapping_data}"
             
-            self.mappings_table.setItem(row_position, 0, QTableWidgetItem(msg_type))
-            self.mappings_table.setItem(row_position, 1, QTableWidgetItem(str(channel)))
-            self.mappings_table.setItem(row_position, 2, QTableWidgetItem(str(note_control)))
-            self.mappings_table.setItem(row_position, 3, QTableWidgetItem(display_endpoint))
+            midi_item = QTableWidgetItem(msg_type)
+            channel_item = QTableWidgetItem(str(channel))
+            note_control_item = QTableWidgetItem(str(note_control))
+            endpoint_item = QTableWidgetItem(display_endpoint)
+            
+            # Set tooltip for the endpoint cell
+            endpoint_item.setToolTip(tooltip)
+            
+            self.mappings_table.setItem(row_position, 0, midi_item)
+            self.mappings_table.setItem(row_position, 1, channel_item)
+            self.mappings_table.setItem(row_position, 2, note_control_item)
+            self.mappings_table.setItem(row_position, 3, endpoint_item)
     
     def edit_mapping(self):
         """Edit the parameters of a selected mapping"""

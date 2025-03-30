@@ -1,7 +1,7 @@
 import os
 import logging
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
-from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QSettings, Qt
 from ui.main_window import MainWindow
 from midi_handler import MidiHandler
 from api_client import ApiClient
@@ -63,6 +63,16 @@ class MidiRestApp(QMainWindow):
         logger.info("Loaded %d MIDI mappings", len(mappings))
         self.midi_handler.set_mappings(mappings)
         
+        # Load window state
+        if self.settings.contains("window/geometry"):
+            self.restoreGeometry(self.settings.value("window/geometry"))
+        
+        if self.settings.contains("window/state"):
+            self.restoreState(self.settings.value("window/state"))
+        else:
+            # Default to maximized
+            self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
+        
     def save_settings(self):
         logger.debug("Saving application settings")
         self.settings.setValue("api/url", self.api_client.api_url)
@@ -72,6 +82,10 @@ class MidiRestApp(QMainWindow):
         # Save MIDI mappings
         self.config_manager.save_mappings(self.midi_handler.mappings)
         logger.info("Settings saved successfully")
+        
+        # Save window state
+        self.settings.setValue("window/geometry", self.saveGeometry())
+        self.settings.setValue("window/state", self.saveState())
     
     def connect_signals(self):
         # Connect UI signals to handlers

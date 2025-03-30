@@ -2,6 +2,7 @@ import sys
 import logging
 import argparse
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QTimer, Qt
 from app import MidiRestApp
 from logging_config import setup_logging
 
@@ -25,7 +26,12 @@ if __name__ == "__main__":
         logger.info("Starting application")
         app = QApplication(sys.argv)
         window = MidiRestApp(dev_mode=args.dev)
+        
+        # Show window with delayed maximization to ensure it works properly
         window.show()
+        # Use single shot timer to maximize after the event loop starts
+        QTimer.singleShot(100, lambda: window.setWindowState(Qt.WindowState.WindowMaximized))
+        
         logger.info("Application UI displayed")
         sys.exit(app.exec())
     except Exception as e:

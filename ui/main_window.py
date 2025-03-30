@@ -72,8 +72,8 @@ class MainWindow(QWidget):
         main_layout.addLayout(button_layout)
         main_layout.addLayout(self.status_layout)
         
-        # Size the window
-        self.resize(1200, 1000)
+        # Size the window - set to maximize on startup
+        self.resize(1200, 1000)  # Set default size in case maximize doesn't work
         logger.debug("Main window UI initialized")
     
     def show_status(self, message):

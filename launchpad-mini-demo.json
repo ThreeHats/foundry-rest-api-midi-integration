@@ -1,0 +1,144 @@
+{
+  "note_on:0:72": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "20d20",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:74": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d100",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:76": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d20",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:77": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d12",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:79": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d10",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:81": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d8",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:83": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d6",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:84": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "formula": "1d4",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:36": {
+    "endpoint": "/last-round",
+    "query_params": {},
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:38": {
+    "endpoint": "/last-turn",
+    "query_params": {},
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:40": {
+    "endpoint": "/next-turn",
+    "query_params": {},
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:41": {
+    "endpoint": "/next-round",
+    "query_params": {},
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:45": {
+    "endpoint": "/start-encounter",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {
+      "tokens": [],
+      "startWithSelected": true,
+      "startWithPlayers": true,
+      "rollNPC": true,
+      "rollAll": false
+    },
+    "path_params": {}
+  },
+  "note_on:0:48": {
+    "endpoint": "/end-encounter",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:60": {
+    "endpoint": "/macro/:uuid/execute",
+    "query_params": {},
+    "body_params": {},
+    "path_params": {
+      "uuid": "Macro.fTZVnV21Pydodehg"
+    }
+  }
+}
