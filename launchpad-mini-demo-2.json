@@ -1,0 +1,209 @@
+{
+  "note_on:0:72": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "20d20",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:74": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d100",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:76": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d20",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:77": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d12",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:79": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d10",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:81": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d8",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:83": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d6",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:84": {
+    "endpoint": "/roll",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {
+      "formula": "1d4",
+      "createChatMessage": "true"
+    },
+    "path_params": {}
+  },
+  "note_on:0:38": {
+    "endpoint": "/last-turn",
+    "query_params": {
+      "clientId": "foundry-rQLkX9c1U2Tzkyh8"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:60": {
+    "endpoint": "/macro/:uuid/execute",
+    "query_params": {
+      "clientId": "foundry-DKL4ZKK80lUZFgSJ"
+    },
+    "body_params": {},
+    "path_params": {
+      "uuid": "Macro.LcjW81QuMMqAYpNW"
+    }
+  },
+  "note_on:0:48": {
+    "endpoint": "/end-encounter",
+    "query_params": {
+      "clientId": "foundry-LZw0ywlj1iYpkUSR"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:41": {
+    "endpoint": "/next-round",
+    "query_params": {
+      "clientId": "foundry-DKL4ZKK80lUZFgSJ"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:36": {
+    "endpoint": "/last-round",
+    "query_params": {
+      "clientId": "foundry-DKL4ZKK80lUZFgSJ"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:40": {
+    "endpoint": "/next-turn",
+    "query_params": {
+      "clientId": "foundry-DKL4ZKK80lUZFgSJ"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:43": {
+    "endpoint": "/start-encounter",
+    "query_params": {},
+    "body_params": {
+      "tokens": [],
+      "startWithSelected": true,
+      "startWithPlayers": true,
+      "rollNPC": true,
+      "rollAll": false
+    },
+    "path_params": {}
+  },
+  "note_on:0:45": {
+    "endpoint": "/add-to-encounter",
+    "query_params": {},
+    "body_params": {
+      "uuids": [],
+      "selected": true,
+      "rollInitiative": true
+    },
+    "path_params": {}
+  },
+  "note_on:0:47": {
+    "endpoint": "/remove-from-encounter",
+    "query_params": {},
+    "body_params": {
+      "uuids": [],
+      "selected": true
+    },
+    "path_params": {}
+  },
+  "note_on:0:75": {
+    "endpoint": "/delete",
+    "query_params": {
+      "selected": "true"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:55": {
+    "endpoint": "/kill",
+    "query_params": {
+      "selected": "true"
+    },
+    "body_params": {},
+    "path_params": {}
+  },
+  "note_on:0:59": {
+    "endpoint": "/decrease",
+    "query_params": {
+      "selected": "true"
+    },
+    "body_params": {
+      "attribute": "system.attributes.hp.value",
+      "amount": "1"
+    },
+    "path_params": {}
+  },
+  "note_on:0:80": {
+    "endpoint": "/increase",
+    "query_params": {
+      "selected": "true"
+    },
+    "body_params": {
+      "attribute": "system.attributes.hp.value",
+      "amount": "1"
+    },
+    "path_params": {}
+  }
+}

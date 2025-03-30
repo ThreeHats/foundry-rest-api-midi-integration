@@ -216,6 +216,21 @@ class ParameterDialog(QDialog):
                     pass
             # Fall back to simple comma split
             return [item.strip() for item in text.split(',')]
+        elif param_type.lower() == "number" or param_type.lower() == "integer" or param_type.lower() == "float":
+            # Convert string to number
+            text = field.text().strip()
+            if not text:
+                return 0
+            try:
+                # Try to convert to number
+                if "." in text:
+                    return float(text)
+                else:
+                    return int(text)
+            except ValueError:
+                # If conversion fails, return as string
+                logger.warning(f"Failed to convert '{text}' to number type, using as string")
+                return text
         else:
             return field.text().strip()
     
