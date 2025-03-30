@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
     QLabel, QPushButton, QComboBox, QTableWidget, 
     QTableWidgetItem, QHeaderView, QMessageBox,
-    QSpinBox, QGroupBox
+    QSpinBox, QGroupBox, QDialog, QFormLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -418,25 +418,25 @@ class MappingWidget(QWidget):
             self.mappings_table.setItem(row_position, 3, endpoint_item)
     
     def edit_mapping(self):
-        """Edit the parameters of a selected mapping"""
+        """Edit a mapping, including the ability to change the MIDI note/control"""
         selected_row = self.mappings_table.currentRow()
         if selected_row < 0:
             logger.warning("No mapping selected for editing")
             QMessageBox.information(self, "No Selection", "Please select a mapping to edit.")
             return
         
-        # Get mapping details
-        msg_type = self.mappings_table.item(selected_row, 0).text()
-        channel = int(self.mappings_table.item(selected_row, 1).text())
-        note_or_control = int(self.mappings_table.item(selected_row, 2).text())
+        # Get original mapping details
+        orig_msg_type = self.mappings_table.item(selected_row, 0).text()
+        orig_channel = int(self.mappings_table.item(selected_row, 1).text())
+        orig_note_or_control = int(self.mappings_table.item(selected_row, 2).text())
         
         # Get the mapping data
-        key = (msg_type, channel, note_or_control)
-        if key not in self.midi_handler.mappings:
+        orig_key = (orig_msg_type, orig_channel, orig_note_or_control)
+        if orig_key not in self.midi_handler.mappings:
             logger.error("Selected mapping not found in mappings dict")
             return
         
-        mapping_data = self.midi_handler.mappings[key]
+        mapping_data = self.midi_handler.mappings[orig_key]
         
         # Handle both old and new formats
         if isinstance(mapping_data, dict):
@@ -450,6 +450,25 @@ class MappingWidget(QWidget):
             query_params = {}
             body_params = {}
             path_params = {}
+        
+        # Set the current values in the input fields to allow editing
+        self.signal_type_combo.setCurrentText(orig_msg_type)
+        self.channel_spin.setValue(orig_channel)
+        self.note_control_spin.setValue(orig_note_or_control)
+        
+        # Find and select the endpoint in the dropdown
+        found_endpoint = False
+        for i in range(self.endpoint_combo.count()):
+            item_text = self.endpoint_combo.itemText(i)
+            if endpoint in item_text:
+                self.endpoint_combo.setCurrentIndex(i)
+                found_endpoint = True
+                break
+        
+        if not found_endpoint:
+            # If not found, add it to the combo
+            self.endpoint_combo.addItem(endpoint)
+            self.endpoint_combo.setCurrentText(endpoint)
         
         # Find endpoint data
         endpoint_data = None
@@ -467,19 +486,88 @@ class MappingWidget(QWidget):
                 "description": "Endpoint details not available"
             }
         
+        # Create a dialog to edit MIDI values
+        midi_values_dialog = QDialog(self)
+        midi_values_dialog.setWindowTitle("Edit MIDI Settings")
+        midi_layout = QVBoxLayout(midi_values_dialog)
+        
+        form_layout = QFormLayout()
+        
+        # Create widgets for MIDI settings
+        type_combo = QComboBox()
+        type_combo.addItems(["note_on", "note_off", "control_change"])
+        type_combo.setCurrentText(orig_msg_type)
+        
+        channel_spin = QSpinBox()
+        channel_spin.setRange(0, 15)
+        channel_spin.setValue(orig_channel)
+        
+        note_spin = QSpinBox()
+        note_spin.setRange(0, 127)
+        note_spin.setValue(orig_note_or_control)
+        
+        form_layout.addRow("MIDI Signal Type:", type_combo)
+        form_layout.addRow("Channel:", channel_spin)
+        form_layout.addRow("Note/Control:", note_spin)
+        
+        midi_layout.addLayout(form_layout)
+        
+        button_box = QHBoxLayout()
+        accept_btn = QPushButton("Continue to Parameters")
+        cancel_btn = QPushButton("Cancel")
+        
+        button_box.addStretch()
+        button_box.addWidget(cancel_btn)
+        button_box.addWidget(accept_btn)
+        
+        midi_layout.addLayout(button_box)
+        
+        accept_btn.clicked.connect(midi_values_dialog.accept)
+        cancel_btn.clicked.connect(midi_values_dialog.reject)
+        
+        # Show the MIDI values dialog
+        if not midi_values_dialog.exec():
+            # User canceled, do nothing
+            return
+        
+        # Get the updated MIDI values
+        new_msg_type = type_combo.currentText()
+        new_channel = channel_spin.value()
+        new_note_or_control = note_spin.value()
+        
+        # Now update the UI widgets to match what the user selected
+        self.signal_type_combo.setCurrentText(new_msg_type)
+        self.channel_spin.setValue(new_channel)
+        self.note_control_spin.setValue(new_note_or_control)
+        
+        # Remove the old mapping first
+        self.midi_handler.remove_mapping(orig_msg_type, orig_channel, orig_note_or_control)
+        
         # Show parameter dialog
         param_dialog = ParameterDialog(endpoint_data, query_params, body_params, path_params, self)
         if param_dialog.exec():
+            # Get the updated parameters
             new_query_params, new_body_params, new_path_params = param_dialog.get_parameters()
             
-            # Update the mapping
+            # Create a new mapping with the updated MIDI trigger and parameters
             self.midi_handler.add_mapping(
-                msg_type, channel, note_or_control, 
+                new_msg_type, new_channel, new_note_or_control, 
                 endpoint, new_query_params, new_body_params, new_path_params
             )
+            
+            # Log the change
+            logger.info("Updated mapping: (%s, %d, %d) -> (%s, %d, %d) for %s", 
+                      orig_msg_type, orig_channel, orig_note_or_control,
+                      new_msg_type, new_channel, new_note_or_control, endpoint)
             
             # Refresh display
             self.refresh_mappings()
             
             # Notify change
             self.mapping_changed_signal.emit(self.midi_handler.mappings)
+        else:
+            # If canceled, restore the old mapping
+            self.midi_handler.add_mapping(
+                orig_msg_type, orig_channel, orig_note_or_control,
+                endpoint, query_params, body_params, path_params
+            )
