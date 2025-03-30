@@ -285,6 +285,7 @@ class MappingWidget(QWidget):
         
         # Get endpoint path and full endpoint data
         endpoint_path = ""
+        http_method = ""
         endpoint_data = None
         
         # Try to get endpoint data from the API client
@@ -294,9 +295,11 @@ class MappingWidget(QWidget):
             for ep in self.api_client.available_endpoints:
                 display = ep.get("display", "")
                 path = ep.get("path", "")
+                method = ep.get("method", "POST")  # Default to POST if not specified
                 
                 if selected_text == display or path == selected_text:
                     endpoint_path = path
+                    http_method = method
                     endpoint_data = ep
                     break
         
@@ -305,7 +308,13 @@ class MappingWidget(QWidget):
             endpoint_path = self.endpoint_combo.currentText()
             if endpoint_path.startswith(("GET ", "POST ", "PUT ", "DELETE ")):
                 # Strip the method prefix if present
-                endpoint_path = endpoint_path.split(" ", 1)[1]
+                parts = endpoint_path.split(" ", 1)
+                http_method = parts[0]
+                endpoint_path = parts[1] if len(parts) > 1 else endpoint_path
+        
+        # We must include the method in the saved endpoint string
+        full_endpoint = endpoint_path
+        full_endpoint = f"{http_method} {endpoint_path}"
         
         # Show parameter dialog if we have endpoint data
         query_params = {}
@@ -319,12 +328,12 @@ class MappingWidget(QWidget):
                 logger.debug("Parameter dialog returned: query=%s, body=%s, path=%s", 
                             query_params, body_params, path_params)
         
-        # Add mapping with parameters
+        # Add mapping with parameters, using the full endpoint with method if needed
         logger.info("Adding MIDI mapping: (%s, %d, %d) -> %s with params", 
-                   msg_type, channel, note_or_control, endpoint_path)
+                   msg_type, channel, note_or_control, full_endpoint)
         self.midi_handler.add_mapping(
             msg_type, channel, note_or_control, 
-            endpoint_path, query_params, body_params, path_params
+            full_endpoint, query_params, body_params, path_params
         )
         
         # Refresh display
@@ -451,6 +460,15 @@ class MappingWidget(QWidget):
             body_params = {}
             path_params = {}
         
+        # Extract HTTP method from endpoint if present
+        http_method = "POST"  # Default
+        endpoint_path = endpoint
+        if " " in endpoint:
+            parts = endpoint.split(" ", 1)
+            if parts[0] in ["GET", "POST", "PUT", "DELETE"]:
+                http_method = parts[0]
+                endpoint_path = parts[1]
+        
         # Set the current values in the input fields to allow editing
         self.signal_type_combo.setCurrentText(orig_msg_type)
         self.channel_spin.setValue(orig_channel)
@@ -460,7 +478,7 @@ class MappingWidget(QWidget):
         found_endpoint = False
         for i in range(self.endpoint_combo.count()):
             item_text = self.endpoint_combo.itemText(i)
-            if endpoint in item_text:
+            if endpoint_path in item_text:
                 self.endpoint_combo.setCurrentIndex(i)
                 found_endpoint = True
                 break
@@ -474,15 +492,15 @@ class MappingWidget(QWidget):
         endpoint_data = None
         if hasattr(self.api_client, "available_endpoints"):
             for ep in self.api_client.available_endpoints:
-                if ep.get("path", "") == endpoint:
+                if ep.get("path", "") == endpoint_path:
                     endpoint_data = ep
                     break
         
         if not endpoint_data:
             # Create minimal endpoint data
             endpoint_data = {
-                "path": endpoint,
-                "method": "Unknown",
+                "path": endpoint_path,
+                "method": http_method,
                 "description": "Endpoint details not available"
             }
         
@@ -549,16 +567,19 @@ class MappingWidget(QWidget):
             # Get the updated parameters
             new_query_params, new_body_params, new_path_params = param_dialog.get_parameters()
             
+            # Ensure the full endpoint includes the HTTP method
+            full_endpoint = f"{http_method} {endpoint_path}"
+            
             # Create a new mapping with the updated MIDI trigger and parameters
             self.midi_handler.add_mapping(
                 new_msg_type, new_channel, new_note_or_control, 
-                endpoint, new_query_params, new_body_params, new_path_params
+                full_endpoint, new_query_params, new_body_params, new_path_params
             )
             
             # Log the change
             logger.info("Updated mapping: (%s, %d, %d) -> (%s, %d, %d) for %s", 
                       orig_msg_type, orig_channel, orig_note_or_control,
-                      new_msg_type, new_channel, new_note_or_control, endpoint)
+                      new_msg_type, new_channel, new_note_or_control, full_endpoint)
             
             # Refresh display
             self.refresh_mappings()

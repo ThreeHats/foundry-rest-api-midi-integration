@@ -151,7 +151,7 @@ class ApiClient(QObject):
             self.api_status_changed.emit(False, f"Failed to fetch endpoints: {str(e)}")
             return []
     
-    def call_endpoint(self, endpoint, params=None, data=None, path_params=None):
+    def call_endpoint(self, endpoint, params=None, data=None, path_params=None, method=None):
         """Call a specific endpoint with parameters - optimized for performance
         
         Args:
@@ -159,9 +159,19 @@ class ApiClient(QObject):
             params (dict, optional): Query parameters
             data (dict, optional): Body data
             path_params (dict, optional): Path parameter values to substitute
+            method (str, optional): HTTP method (GET, POST, PUT, DELETE)
         """
         if not endpoint.startswith('/'):
             endpoint = '/' + endpoint
+        
+        # Determine the HTTP method
+        if not method:
+            # Try to extract method from endpoint string if in format "METHOD /path"
+            if " " in endpoint and endpoint.split(" ")[0] in ["GET", "POST", "PUT", "DELETE"]:
+                method, endpoint = endpoint.split(" ", 1)
+            else:
+                # Default to POST if not specified
+                method = "POST"
         
         # Replace path variables with actual values if provided
         if path_params:
@@ -192,7 +202,17 @@ class ApiClient(QObject):
         try:
             # Use the session for better performance through connection reuse
             url = f"{self.api_url}{endpoint}"
-            response = self.session.post(url, params=params, json=data, headers=headers)
+            
+            # Use the appropriate HTTP method
+            if method.upper() == "GET":
+                response = self.session.get(url, params=params, headers=headers)
+            elif method.upper() == "PUT":
+                response = self.session.put(url, params=params, json=data, headers=headers)
+            elif method.upper() == "DELETE":
+                response = self.session.delete(url, params=params, headers=headers)
+            else:  # Default to POST
+                response = self.session.post(url, params=params, json=data, headers=headers)
+                
             response.raise_for_status()
             return response.json() if response.content else {'success': True}
         except Exception as e:

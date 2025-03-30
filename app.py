@@ -112,28 +112,36 @@ class MidiRestApp(QMainWindow):
     def on_midi_signal(self, midi_event, endpoint, query_params, body_params, path_params):
         """Optimized handler for MIDI signals triggering API calls"""
         try:
+            # Extract HTTP method if present in endpoint string
+            method = None
+            if " " in endpoint and endpoint.split(" ")[0] in ["GET", "POST", "PUT", "DELETE"]:
+                method, endpoint_path = endpoint.split(" ", 1)
+            else:
+                endpoint_path = endpoint
+                
             # Only log in dev mode to avoid performance overhead
             if self.dev_mode:
-                logger.debug("MIDI signal triggered API call: %s with params: %s, %s, path: %s", 
-                           endpoint, query_params, body_params, path_params)
+                logger.debug("MIDI signal triggered API call: %s%s with params: %s, %s, path: %s", 
+                           method + " " if method else "", endpoint_path, query_params, body_params, path_params)
             
-            # Make the API call directly
+            # Make the API call directly with method
             response = self.api_client.call_endpoint(
-                endpoint, 
+                endpoint_path,
                 params=query_params, 
                 data=body_params,
-                path_params=path_params
+                path_params=path_params,
+                method=method
             )
             
-            # Update UI status in a non-blocking way - this might have been blocking the MIDI thread
-            self.ui.show_status_nonblocking(f"API call: {endpoint}")
+            # Update UI status in a non-blocking way
+            self.ui.show_status_nonblocking(f"API call: {method + ' ' if method else ''}{endpoint_path}")
             
             # Minimal feedback in production mode
             if self.dev_mode:
-                logger.debug("API call succeeded: %s, Response: %s", endpoint, response)
+                logger.debug("API call succeeded: %s, Response: %s", endpoint_path, response)
         except Exception as e:
             if self.dev_mode:
-                logger.error("API call failed: %s, Error: %s", endpoint, str(e))
+                logger.error("API call failed: %s, Error: %s", endpoint_path, str(e))
             self.ui.show_status_nonblocking(f"Error: {str(e)}")
     
     def closeEvent(self, event):
