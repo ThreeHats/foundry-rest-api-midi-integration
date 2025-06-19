@@ -44,7 +44,7 @@ jobs:
           Compress-Archive -Path "MIDI-REST-Integration-${{ github.ref_name }}-windows" -DestinationPath "MIDI-REST-Integration-${{ github.ref_name }}-windows.zip"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: dist/MIDI-REST-Integration-${{ github.ref_name }}-windows.zip
@@ -87,7 +87,7 @@ jobs:
   #         zip -r "MIDI-REST-Integration-${{ github.ref_name }}-darwin.zip" "MIDI-REST-Integration-${{ github.ref_name }}-darwin"
 
   #     - name: Upload artifacts
-  #       uses: actions/upload-artifact@v3
+  #       uses: actions/upload-artifact@v4
   #       with:
   #         name: macos-build
   #         path: dist/MIDI-REST-Integration-${{ github.ref_name }}-darwin.zip
@@ -132,17 +132,16 @@ jobs:
           tar -czvf "MIDI-REST-Integration-${{ github.ref_name }}-linux.tar.gz" "MIDI-REST-Integration-${{ github.ref_name }}-linux"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: dist/MIDI-REST-Integration-${{ github.ref_name }}-linux.tar.gz
-
   create-release:
     needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -159,12 +158,11 @@ jobs:
           prerelease: false
           files: |
             artifacts/windows-build/MIDI-REST-Integration-${{ github.ref_name }}-windows.zip
-            artifacts/macos-build/MIDI-REST-Integration-${{ github.ref_name }}-darwin.zip
             artifacts/linux-build/MIDI-REST-Integration-${{ github.ref_name }}-linux.tar.gz
           body: |
             # MIDI REST Integration v${{ github.ref_name }}
             
-            This release contains binaries for Windows, and Linux.
+            This release contains binaries for Windows and Linux.
             
             ## Installation
             
