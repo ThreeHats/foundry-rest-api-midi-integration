@@ -8,11 +8,9 @@ import subprocess
 import argparse
 from pathlib import Path
 
-# Define application metadata
-APP_NAME = "MIDI-REST-Integration"
-APP_VERSION = "1.0.0"  # Update this with your app version
-APP_DESCRIPTION = "MIDI to REST API Integration Tool"
-APP_AUTHOR = "Noah"  # Update with your name
+# Import version information from central location
+from version import VERSION as APP_VERSION
+from version import APP_NAME, APP_DESCRIPTION, APP_AUTHOR
 APP_ICON = "resources/icon"  # Will use .ico for Windows, .icns for macOS
 
 # Define resource files to include
@@ -51,12 +49,14 @@ def get_platform_options():
         "windowed": True,  # Don't show console
         "add_data": [],
     }
-      # Add resource files
+    
+    # Add resource files
     for src, dst in RESOURCE_FILES:
         if os.path.exists(src):
             path_sep = ";" if os_name == "windows" else ":"
             options["add_data"].append(f"{src}{path_sep}{dst}")
-      # Platform-specific options
+    
+    # Platform-specific options
     if os_name == "windows":
         icon_path = f"{APP_ICON}.ico"
         if os.path.exists(icon_path):
@@ -97,6 +97,7 @@ def create_spec_file(options, platform_name):
             formatted_datas.append(f"('{src}', '{dst}')")
     
     datas_str = "[" + ", ".join(formatted_datas) + "]"
+    
     spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
@@ -137,7 +138,8 @@ exe = EXE(
     name='{options["name"]}',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,    upx=True,
+    strip=False,
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
     console={not options.get('windowed', False)}{icon_param}
@@ -170,7 +172,8 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    upx_exclude=[],    name='{options["name"]}',
+    upx_exclude=[],
+    name='{options["name"]}',
 )
 """
     # Add macOS bundle for macOS builds

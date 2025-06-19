@@ -1,14 +1,61 @@
 import logging
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QLabel, QStatusBar, QPushButton, QSplitter, QSizePolicy
+    QLabel, QStatusBar, QPushButton, QSplitter, QSizePolicy,
+    QMenuBar, QDialog, QDialogButtonBox, QTextBrowser
 )
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QAction
 from ui.config_widget import ConfigWidget
 from ui.mapping_widget import MappingWidget
 from ui.midi_monitor_widget import MidiMonitorWidget
 
+from update_checker import CURRENT_VERSION
+
 logger = logging.getLogger(__name__)
+
+class AboutDialog(QDialog):
+    """About dialog with version information and update check."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.setWindowTitle("About MIDI REST Integration")
+        self.setFixedSize(500, 200)
+        
+        layout = QVBoxLayout()
+        
+        # App info
+        app_info = QLabel()
+        app_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_info.setText(
+            "<h2>MIDI REST Integration</h2>"
+            f"<p><b>Version:</b> {CURRENT_VERSION}</p>"
+            "<p><b>Author:</b> ThreeHats</p>"
+            "<p>Connect MIDI controllers to Foundry VTT via REST API</p>"
+        )
+        layout.addWidget(app_info)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        self.update_button = QPushButton("Check for Updates")
+        self.update_button.clicked.connect(self.check_for_updates)
+        button_layout.addWidget(self.update_button)
+        
+        button_layout.addStretch()
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        button_box.accepted.connect(self.accept)
+        button_layout.addWidget(button_box)
+        
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+    
+    def check_for_updates(self):
+        """Trigger update check."""
+        if self.parent and hasattr(self.parent, 'check_for_updates'):
+            self.parent.check_for_updates()
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -21,6 +68,9 @@ class MainWindow(QWidget):
         # Main layout
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
+        
+        # Create menu bar
+        self.create_menu_bar(main_layout)
         
         # Create tabs
         logger.debug("Creating UI tabs")
@@ -56,25 +106,47 @@ class MainWindow(QWidget):
         
         self.status_layout.addWidget(self.status_label)
         
-        # Import/Export buttons
-        button_layout = QHBoxLayout()
-        self.import_button = QPushButton("Import Config")
-        self.export_button = QPushButton("Export Config")
-        button_layout.addWidget(self.import_button)
-        button_layout.addWidget(self.export_button)
-        button_layout.addStretch()
-        
-        # Connect buttons
-        self.import_button.clicked.connect(self.import_config)
-        self.export_button.clicked.connect(self.export_config)
-        
-        # Add status and buttons to main layout
-        main_layout.addLayout(button_layout)
-        main_layout.addLayout(self.status_layout)
-        
         # Size the window - set to maximize on startup
         self.resize(1200, 1000)  # Set default size in case maximize doesn't work
         logger.debug("Main window UI initialized")
+    
+    def create_menu_bar(self, main_layout):
+        """Create menu bar with Help menu."""
+        menu_bar = QMenuBar()
+        main_layout.setMenuBar(menu_bar)
+        
+        # File menu
+        file_menu = menu_bar.addMenu("File")
+        
+        # Preferences action
+        preferences_action = QAction("Import Config", self)
+        preferences_action.triggered.connect(self.import_config)
+        file_menu.addAction(preferences_action)
+        
+        file_menu.addSeparator()
+        
+        # Exit action
+        exit_action = QAction("Export Config", self)
+        exit_action.triggered.connect(self.export_config)
+        file_menu.addAction(exit_action)
+        
+        # Help menu
+        help_menu = menu_bar.addMenu("Help")
+        
+        # About action
+        about_action = QAction("About", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+    
+    def check_for_updates(self):
+        """Trigger manual update check."""
+        if self.parent and hasattr(self.parent, 'check_for_updates'):
+            self.parent.check_for_updates()
+    
+    def show_about(self):
+        """Show about dialog."""
+        dialog = AboutDialog(self.parent)
+        dialog.exec()
     
     def show_status(self, message):
         """Show status message"""

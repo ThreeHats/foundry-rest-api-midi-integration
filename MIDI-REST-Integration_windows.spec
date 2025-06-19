@@ -30,8 +30,9 @@ exe = EXE(
     name='MIDI-REST-Integration',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,    upx=True,
+    strip=False,
+    upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False
+    console=False, icon='resources/icon.ico'
 )

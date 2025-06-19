@@ -1,11 +1,12 @@
 import os
 import logging
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
-from PyQt6.QtCore import QSettings, Qt
+from PyQt6.QtCore import QSettings, Qt, QTimer
 from ui.main_window import MainWindow
 from midi_handler import MidiHandler
 from api_client import ApiClient
 from config_manager import ConfigManager
+from update_checker import UpdateManager
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +33,18 @@ class MidiRestApp(QMainWindow):
         self.ui = MainWindow(self)
         self.setCentralWidget(self.ui)
         self.setWindowTitle("MIDI to Foundry VTT REST API")
+          # Initialize update manager early to check for updates during startup
+        logger.debug("Initializing update manager")
+        self.update_manager = UpdateManager(self)
         
         # Load style sheet
         self.load_stylesheet()
         
         # Connect signals
         self.connect_signals()
+        
+        # Setup automatic update checking immediately
+        QTimer.singleShot(1000, lambda: self.update_manager.check_for_updates_async(silent=True))
         
         logger.info("Application initialization complete")
         
@@ -122,7 +129,7 @@ class MidiRestApp(QMainWindow):
             # Only log in dev mode to avoid performance overhead
             if self.dev_mode:
                 logger.debug("MIDI signal triggered API call: %s%s with params: %s, %s, path: %s", 
-                           method + " " if method else "", endpoint_path, query_params, body_params, path_params)
+                           f"{method} " if method else "", endpoint_path, query_params, body_params, path_params)
             
             # Make the API call directly with method
             response = self.api_client.call_endpoint(
@@ -134,7 +141,7 @@ class MidiRestApp(QMainWindow):
             )
             
             # Update UI status in a non-blocking way
-            self.ui.show_status_nonblocking(f"API call: {method + ' ' if method else ''}{endpoint_path}")
+            self.ui.show_status_nonblocking(f"API call: {f'{method} ' if method else ''}{endpoint_path}")
             
             # Minimal feedback in production mode
             if self.dev_mode:
@@ -143,6 +150,16 @@ class MidiRestApp(QMainWindow):
             if self.dev_mode:
                 logger.error("API call failed: %s, Error: %s", endpoint_path, str(e))
             self.ui.show_status_nonblocking(f"Error: {str(e)}")
+    
+    def check_for_updates(self):
+        """Manually check for updates."""
+        logger.info("Manual update check requested")
+        self.update_manager.check_for_updates_async(silent=False)
+    
+    def show_status(self, message):
+        """Show status message in UI."""
+        if hasattr(self.ui, 'show_status'):
+            self.ui.show_status(message)
     
     def closeEvent(self, event):
         logger.info("Application closing")
