@@ -30,10 +30,9 @@ class ConfigWidget(QWidget):
         api_group = QGroupBox("API Configuration")
         api_layout = QFormLayout()
         api_group.setLayout(api_layout)
-        
-        # API URL
+          # API URL
         self.api_url_input = QLineEdit()
-        self.api_url_input.setPlaceholderText("https://your-foundry-server.com/api")
+        self.api_url_input.setPlaceholderText("https://foundryvtt-rest-api-relay.fly.dev")
         api_layout.addRow("API URL:", self.api_url_input)
         
         # API Key

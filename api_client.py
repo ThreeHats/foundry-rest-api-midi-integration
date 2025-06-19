@@ -14,7 +14,7 @@ class ApiClient(QObject):
     
     def __init__(self):
         super().__init__()
-        self.api_url = ""
+        self.api_url = "https://foundryvtt-rest-api-relay.fly.dev"
         self.api_key = ""
         self.client_id = ""
         self.available_endpoints = []
