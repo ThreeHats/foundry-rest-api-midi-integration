@@ -4,6 +4,8 @@
 
 A desktop application that allows you to control Foundry VTT using MIDI controllers. Map MIDI buttons, knobs, and keys to specific REST API endpoints in Foundry VTT to trigger dice rolls, macros, and other actions.
 
+<img width="1907" height="1034" alt="foundry-rest-api-midi-integration" src="https://github.com/user-attachments/assets/aac8d139-1096-418d-b1a3-4492d316cca2" />
+
 ## Features
 
 - Connect any MIDI device to Foundry VTT
